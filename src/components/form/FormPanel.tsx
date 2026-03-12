@@ -5,6 +5,7 @@ import AccommodationSection from './sections/AccommodationSection';
 import UseSection from './sections/UseSection';
 import Page2Section from './sections/Page2Section';
 import ViewingsSection from './sections/ViewingsSection';
+import FooterSection from './sections/FooterSection';
 
 function formatSavedTime(date: Date | null): string {
   if (!date) return '';
@@ -29,7 +30,7 @@ export default function FormPanel() {
   }, [lastSavedAt]);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50/50">
+    <div className="h-full flex flex-col bg-gray-100">
       {/* Editor toolbar */}
       <div className="flex items-center gap-1 px-4 h-10 border-b border-gray-100 bg-white/80 backdrop-blur-sm sticky top-0 z-10 shrink-0">
         {/* Undo / Redo */}
@@ -67,12 +68,13 @@ export default function FormPanel() {
       </div>
 
       {/* Form content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-5">
         <PropertySection />
         <AccommodationSection />
         <UseSection />
         <Page2Section />
         <ViewingsSection />
+        <FooterSection />
         <div className="h-8" />
       </div>
     </div>

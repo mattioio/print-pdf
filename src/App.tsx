@@ -15,6 +15,7 @@ type Route =
 export default function App() {
   const [route, setRoute] = useState<Route>({ page: 'loading' });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsRevision, setSettingsRevision] = useState(0);
 
   // Run one-time migration on mount, then show dashboard
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function App() {
     <>
       {route.page === 'editor' ? (
         <BrochureProvider initial={route.data} key={route.data.id}>
-          <Editor onBack={handleBack} onSettings={() => setSettingsOpen(true)} />
+          <Editor onBack={handleBack} onSettings={() => setSettingsOpen(true)} settingsRevision={settingsRevision} />
         </BrochureProvider>
       ) : (
         <Dashboard
@@ -58,7 +59,7 @@ export default function App() {
         />
       )}
 
-      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <Settings open={settingsOpen} onClose={() => { setSettingsOpen(false); setSettingsRevision((r) => r + 1); }} />
     </>
   );
 }

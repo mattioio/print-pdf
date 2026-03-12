@@ -16,6 +16,10 @@ export function createDefaultBrochure(): BrochureData {
     agency: { ...settings.agency },
     heroImageUrl: '',
     heroImagePosition: { x: 50, y: 50 },
+    heroSize: 'landscape',
+    heroZoom: 100,
+    showGallery: false,
+    galleryImages: [],
     headline: 'COMMERCIAL PROPERTY TO LET',
     locationName: '',
     propertyAddress: '',
@@ -23,6 +27,7 @@ export function createDefaultBrochure(): BrochureData {
     rent: 'Upon Application.',
     premisesLicence: '',
     accommodationDescription: '',
+    accommodationExtra: '',
     accommodation: [
       { id: uuid(), floor: 'Ground Floor', sqFt: null, sqM: null },
     ],
@@ -37,6 +42,8 @@ export function createDefaultBrochure(): BrochureData {
     epc: '',
     mapUrl: '',
     mapImageUrl: '',
+    disclaimer: '*Misrepresentation Act:* Whilst every care is taken in the preparation of these particulars, the agents, any joint agents involved, and the vendor take no responsibility for any error, misstatement or omission in these details. Measurements are approximate and for guidance only. These particulars do not constitute an offer or contract and members of the Agents firm have no authority to make any representation or warranty in relation to the property.',
     accentColor: settings.accentColor,
+    textColor: settings.textColor,
   };
 }

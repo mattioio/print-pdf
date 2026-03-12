@@ -2,7 +2,7 @@
 
 export function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="text-xs font-extrabold text-gray-500 uppercase tracking-widest pt-5 pb-1 border-t border-gray-100">
+    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide mt-2 -mb-2 px-1">
       {children}
     </h3>
   );
@@ -10,7 +10,7 @@ export function SectionHeading({ children }: { children: React.ReactNode }) {
 
 export function Section({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white rounded-lg border border-gray-100 p-3 space-y-3 ${className}`}>
+    <div className={`bg-white rounded-lg border border-gray-100 p-4 space-y-4 ${className}`}>
       {children}
     </div>
   );
@@ -18,7 +18,7 @@ export function Section({ children, className = '' }: { children: React.ReactNod
 
 export function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="block text-sm font-medium text-gray-700 mb-1">
+    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
       {children}
     </label>
   );
@@ -36,7 +36,7 @@ export function Input({
   return (
     <input
       type="text"
-      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
+      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
@@ -57,7 +57,7 @@ export function TextArea({
 }) {
   return (
     <textarea
-      className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-y"
+      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-y"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}

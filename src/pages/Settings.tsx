@@ -287,30 +287,58 @@ export default function Settings({ open, onClose }: SettingsProps) {
           <div className="border-t border-gray-200 pt-6 space-y-4">
             <h3 className="text-base font-semibold text-gray-900">Branding</h3>
 
-            <div>
-              <Label>Accent Color</Label>
-              <div className="flex items-center gap-2 mt-1">
-                <input
-                  type="color"
-                  value={settings.accentColor}
-                  onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, accentColor: e.target.value }))
-                  }
-                  className="w-9 h-9 rounded border border-gray-300 cursor-pointer p-0.5"
-                />
-                <input
-                  type="text"
-                  className={inputClass + ' !w-28 font-mono'}
-                  value={settings.accentColor}
-                  onChange={(e) => {
-                    let v = e.target.value;
-                    if (!v.startsWith('#')) v = '#' + v;
-                    v = '#' + v.slice(1).replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-                    setSettings((prev) => ({ ...prev, accentColor: v }));
-                  }}
-                  placeholder="#000000"
-                  title="Hex colour code"
-                />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Accent Color</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={settings.accentColor}
+                    onChange={(e) =>
+                      setSettings((prev) => ({ ...prev, accentColor: e.target.value }))
+                    }
+                    className="w-9 h-9 rounded border border-gray-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    className={inputClass + ' !w-28 font-mono'}
+                    value={settings.accentColor}
+                    onChange={(e) => {
+                      let v = e.target.value;
+                      if (!v.startsWith('#')) v = '#' + v;
+                      v = '#' + v.slice(1).replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+                      setSettings((prev) => ({ ...prev, accentColor: v }));
+                    }}
+                    placeholder="#000000"
+                    title="Hex colour code"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Text Color</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={settings.textColor}
+                    onChange={(e) =>
+                      setSettings((prev) => ({ ...prev, textColor: e.target.value }))
+                    }
+                    className="w-9 h-9 rounded border border-gray-300 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    className={inputClass + ' !w-28 font-mono'}
+                    value={settings.textColor}
+                    onChange={(e) => {
+                      let v = e.target.value;
+                      if (!v.startsWith('#')) v = '#' + v;
+                      v = '#' + v.slice(1).replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+                      setSettings((prev) => ({ ...prev, textColor: v }));
+                    }}
+                    placeholder="#1a1a1a"
+                    title="Hex colour code"
+                  />
+                </div>
               </div>
             </div>
 

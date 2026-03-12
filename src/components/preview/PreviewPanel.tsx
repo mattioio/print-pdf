@@ -4,6 +4,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { useBrochure } from '../../context/BrochureContext';
 import { templates } from '../pdf/templates';
 import { loadAgencySettings } from '../../utils/agency';
+import { checkPage1Overflow } from '../pdf/shared/columnFlow';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -15,9 +16,10 @@ const ZOOM_STEPS = [50, 75, 100, 125, 150, 200];
 interface PreviewPanelProps {
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
+  settingsRevision: number;
 }
 
-export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar }: PreviewPanelProps) {
+export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar, settingsRevision }: PreviewPanelProps) {
   const { data } = useBrochure();
   const template = templates[data.templateId] ?? templates.classic;
   const TemplateComponent = template.component;
@@ -29,10 +31,13 @@ export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar }: Prev
       ...data,
       agency: settings.agency,
       accentColor: settings.accentColor,
+      textColor: settings.textColor,
       titleFont: settings.titleFont,
       bodyFont: settings.bodyFont,
     };
-  }, [data]);
+  }, [data, settingsRevision]);
+
+  const overflowed = useMemo(() => checkPage1Overflow(liveData), [liveData]);
 
   const document = useMemo(() => <TemplateComponent data={liveData} />, [liveData]);
   const [instance, update] = usePDF({ document });
@@ -55,13 +60,48 @@ export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar }: Prev
 
   const [numPages, setNumPages] = useState(0);
   const [zoom, setZoom] = useState(100);
+  const [busy, setBusy] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const savedScroll = useRef(0);
+  const prevUrl = useRef(instance.url);
+  const reloading = useRef(false);
+
+  // Dim as soon as a debounced update starts PDF regeneration
+  useEffect(() => {
+    setBusy(true);
+    update(debouncedDoc);
+  }, [debouncedDoc, update]);
+
+  // When the PDF blob URL changes, lock content height to prevent scroll collapse.
+  // Runs during render (before DOM update) so we capture the old height.
+  if (instance.url && instance.url !== prevUrl.current) {
+    prevUrl.current = instance.url;
+    reloading.current = true;
+    if (contentRef.current) {
+      contentRef.current.style.minHeight = `${contentRef.current.offsetHeight}px`;
+    }
+  }
+
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current && !reloading.current) {
+      savedScroll.current = scrollRef.current.scrollTop;
+    }
+  }, []);
 
   const onDocumentLoadSuccess = useCallback(({ numPages: n }: { numPages: number }) => {
     setNumPages(n);
+    requestAnimationFrame(() => {
+      if (contentRef.current) contentRef.current.style.minHeight = '';
+      if (scrollRef.current) scrollRef.current.scrollTop = savedScroll.current;
+      reloading.current = false;
+      setBusy(false);
+    });
   }, []);
 
-  // A4 at 100% = ~595pt (A4 width in points). Scale based on zoom.
+  // A4 dimensions scaled to zoom level
   const pageWidth = Math.round(595 * (zoom / 100));
+  const pageHeight = Math.round(pageWidth * 1.4142);
 
   const zoomIn = () => {
     const next = ZOOM_STEPS.find((s) => s > zoom);
@@ -146,37 +186,81 @@ export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar }: Prev
 
       </div>
 
+      {/* Overflow warning */}
+      {overflowed && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border-b border-amber-100">
+          <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 1l7 14H1L8 1zm0 4.5v4m0 2v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+          </svg>
+          <span className="text-xs text-amber-700">
+            Page 1 content is being clipped — try shortening descriptions{liveData.heroSize === 'tall' ? ' or switching to Landscape' : ''}.
+          </span>
+        </div>
+      )}
+
+      {/* Missing map warning */}
+      {liveData.propertyAddress?.trim() && !liveData.mapImageUrl && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border-b border-amber-100">
+          <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="8" cy="6.5" r="2.5" />
+            <path d="M8 1C5.2 1 3 3.2 3 6c0 3.5 5 9 5 9s5-5.5 5-9c0-2.8-2.2-5-5-5z" />
+          </svg>
+          <span className="text-xs text-amber-700">
+            No map found for this address — paste a Google Maps link in the Property section.
+          </span>
+        </div>
+      )}
+
       {/* PDF Preview */}
-      <div className="flex-1 overflow-auto p-6">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-auto p-6"
+        style={{
+          background: 'linear-gradient(rgba(51,51,51,0.85), rgba(51,51,51,0.85)), url(/images/diagonal.svg) 0 0 / 128px 128px',
+        }}
+      >
         {instance.error && (
           <div className="flex items-center justify-center h-full text-red-500 text-sm">
             Error generating PDF: {String(instance.error)}
           </div>
         )}
-        {instance.url && (
-          <Document
-            file={instance.url}
-            onLoadSuccess={onDocumentLoadSuccess}
-            loading={
-              <div className="flex items-center justify-center py-20 text-gray-400">
-                Rendering preview...
-              </div>
-            }
-          >
-            <div className="flex flex-col items-center gap-6">
-              {Array.from({ length: numPages }, (_, i) => (
-                <div key={i} className="shadow-lg">
-                  <Page
-                    pageNumber={i + 1}
-                    width={pageWidth}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
-                  />
+        {/* Content wrapper: locks minHeight during reload to prevent scroll collapse,
+            dims while the PDF regenerates, and uses size-matched placeholders to
+            avoid layout shift when react-pdf swaps out page canvases. */}
+        <div
+          ref={contentRef}
+          className="transition-opacity duration-150"
+          style={{ opacity: busy ? 0.5 : 1 }}
+        >
+          {instance.url && (
+            <Document
+              file={instance.url}
+              onLoadSuccess={onDocumentLoadSuccess}
+              loading={
+                <div className="flex flex-col items-center gap-6">
+                  {Array.from({ length: numPages || 1 }, (_, i) => (
+                    <div key={i} className="shadow-lg bg-white" style={{ width: pageWidth, height: pageHeight }} />
+                  ))}
                 </div>
-              ))}
-            </div>
-          </Document>
-        )}
+              }
+            >
+              <div className="flex flex-col items-center gap-6">
+                {Array.from({ length: numPages }, (_, i) => (
+                  <div key={i} className="shadow-lg bg-white">
+                    <Page
+                      pageNumber={i + 1}
+                      width={pageWidth}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      canvasBackground="white"
+                    />
+                  </div>
+                ))}
+              </div>
+            </Document>
+          )}
+        </div>
         {!instance.url && !instance.error && (
           <div className="flex items-center justify-center h-full text-gray-400">
             Generating PDF...

@@ -15,6 +15,10 @@ function stripImages(b: BrochureData): BrochureData {
   for (const field of IMAGE_FIELDS) {
     stripped[field] = '';
   }
+  // Strip gallery image URLs (keep metadata like position)
+  if (stripped.galleryImages?.length) {
+    stripped.galleryImages = stripped.galleryImages.map((img) => ({ ...img, url: '' }));
+  }
   return stripped;
 }
 
@@ -46,6 +50,12 @@ export function loadBrochure(id: string): BrochureData | null {
     bodyFont: b.bodyFont || 'Montserrat',
     viewingsBlurb: b.viewingsBlurb ?? '',
     mapUrl: b.mapUrl ?? '',
+    heroSize: b.heroSize ?? 'landscape',
+    heroZoom: b.heroZoom ?? 100,
+    showGallery: b.showGallery ?? false,
+    galleryImages: b.galleryImages ?? [],
+    accommodationExtra: b.accommodationExtra ?? '',
+    disclaimer: b.disclaimer ?? '*Misrepresentation Act:* Whilst every care is taken in the preparation of these particulars, the agents, any joint agents involved, and the vendor take no responsibility for any error, misstatement or omission in these details. Measurements are approximate and for guidance only. These particulars do not constitute an offer or contract and members of the Agents firm have no authority to make any representation or warranty in relation to the property.',
   };
 }
 
@@ -64,6 +74,16 @@ export async function loadBrochureWithImages(id: string): Promise<BrochureData |
     }),
   );
 
+  // Hydrate gallery images
+  if (b.galleryImages?.length) {
+    await Promise.all(
+      b.galleryImages.map(async (img) => {
+        const data = await loadImage(`${id}:gallery:${img.id}`);
+        if (data) img.url = data;
+      }),
+    );
+  }
+
   return b;
 }
 
@@ -78,6 +98,17 @@ export async function saveBrochureAsync(brochure: BrochureData): Promise<void> {
       }
     }),
   );
+
+  // Save gallery images to IndexedDB
+  if (brochure.galleryImages?.length) {
+    await Promise.all(
+      brochure.galleryImages.map(async (img) => {
+        if (img.url) {
+          await saveImage(`${brochure.id}:gallery:${img.id}`, img.url);
+        }
+      }),
+    );
+  }
 
   // Save text-only data to localStorage
   const brochures = listBrochures();
