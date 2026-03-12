@@ -1,0 +1,201 @@
+/**
+ * Parse lat/lng coordinates from a Google Maps URL.
+ *
+ * Supported formats:
+ *   https://www.google.com/maps/@51.4613,-0.1156,15z
+ *   https://www.google.com/maps/place/.../@51.4613,-0.1156,15z/...
+ *   https://www.google.com/maps/place/...!3d51.4613!4d-0.1156...
+ *   https://maps.google.com/?q=51.4613,-0.1156
+ *   https://www.google.com/maps?q=51.4613,-0.1156
+ *   https://www.google.com/maps?ll=51.4613,-0.1156
+ *   https://maps.app.goo.gl/... (short links — will attempt to resolve)
+ */
+export function parseCoordsFromUrl(
+  url: string
+): { lat: number; lng: number } | null {
+  if (!url) return null;
+
+  // Try /@lat,lng pattern (most common when you copy from address bar)
+  const atMatch = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (atMatch) {
+    return { lat: parseFloat(atMatch[1]), lng: parseFloat(atMatch[2]) };
+  }
+
+  // Try !3d=lat!4d=lng pattern (Google Maps place data params)
+  const dataMatch = url.match(/!3d(-?\d+\.?\d*)!4d(-?\d+\.?\d*)/);
+  if (dataMatch) {
+    return { lat: parseFloat(dataMatch[1]), lng: parseFloat(dataMatch[2]) };
+  }
+
+  // Try /dir/ or /data= patterns with 1d/2d params
+  const dirMatch = url.match(/!1d(-?\d+\.?\d*)!2d(-?\d+\.?\d*)/);
+  if (dirMatch) {
+    return { lat: parseFloat(dirMatch[1]), lng: parseFloat(dirMatch[2]) };
+  }
+
+  // Try ?q=lat,lng pattern
+  const qMatch = url.match(/[?&]q=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (qMatch) {
+    return { lat: parseFloat(qMatch[1]), lng: parseFloat(qMatch[2]) };
+  }
+
+  // Try ?ll=lat,lng or &ll=lat,lng pattern (Apple Maps style)
+  const llMatch = url.match(/[?&]ll=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (llMatch) {
+    return { lat: parseFloat(llMatch[1]), lng: parseFloat(llMatch[2]) };
+  }
+
+  // Try ?center=lat,lng pattern
+  const centerMatch = url.match(/[?&]center=(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+  if (centerMatch) {
+    return { lat: parseFloat(centerMatch[1]), lng: parseFloat(centerMatch[2]) };
+  }
+
+  return null;
+}
+
+/**
+ * Geocode a query string (place name or address) via Nominatim.
+ * If url is provided, extracts place name from /maps/place/NAME/ pattern.
+ * If directQuery is provided, geocodes that directly (e.g. a street address).
+ */
+export async function resolveAndParseCoords(
+  url: string | null,
+  directQuery?: string
+): Promise<{ lat: number; lng: number } | null> {
+  let query = directQuery;
+
+  if (!query && url) {
+    const placeMatch = url.match(/\/maps\/place\/([^/@?]+)/);
+    if (!placeMatch) return null;
+    query = decodeURIComponent(placeMatch[1].replace(/\+/g, ' '));
+  }
+
+  if (!query) return null;
+
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+      { headers: { 'User-Agent': 'PrintPDF-BrochureBuilder/1.0' } }
+    );
+    const results = await res.json();
+    if (results.length > 0) {
+      return {
+        lat: parseFloat(results[0].lat),
+        lng: parseFloat(results[0].lon),
+      };
+    }
+  } catch {
+    // geocoding failed
+  }
+
+  return null;
+}
+
+/**
+ * Generate a static map image as a data URL using Google Maps road tiles.
+ * Composites tiles onto a canvas with a Google-style pin marker.
+ */
+export async function generateStaticMap(
+  lat: number,
+  lng: number,
+  opts: { width?: number; height?: number; zoom?: number } = {}
+): Promise<string> {
+  const { width = 800, height = 400, zoom = 16 } = opts;
+  const tileSize = 256;
+  const n = Math.pow(2, zoom);
+
+  // Convert lat/lng to global pixel coords
+  const centerPxX = ((lng + 180) / 360) * n * tileSize;
+  const latRad = (lat * Math.PI) / 180;
+  const centerPxY =
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+    n *
+    tileSize;
+
+  // Top-left pixel of our viewport
+  const topLeftPxX = centerPxX - width / 2;
+  const topLeftPxY = centerPxY - height / 2;
+
+  // Tile range needed
+  const startTileX = Math.floor(topLeftPxX / tileSize);
+  const startTileY = Math.floor(topLeftPxY / tileSize);
+  const endTileX = Math.floor((topLeftPxX + width) / tileSize);
+  const endTileY = Math.floor((topLeftPxY + height) / tileSize);
+
+  // Pixel offset of first tile
+  const offsetX = topLeftPxX - startTileX * tileSize;
+  const offsetY = topLeftPxY - startTileY * tileSize;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+
+  // Fill background
+  ctx.fillStyle = '#e5e3df';
+  ctx.fillRect(0, 0, width, height);
+
+  // Load all tiles in parallel
+  const loadTile = (tx: number, ty: number): Promise<void> =>
+    new Promise((resolve) => {
+      const wrapTx = ((tx % n) + n) % n;
+      if (ty < 0 || ty >= n) {
+        resolve();
+        return;
+      }
+      const url = `https://mt0.google.com/vt/lyrs=m&x=${wrapTx}&y=${ty}&z=${zoom}`;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const px = (tx - startTileX) * tileSize - offsetX;
+        const py = (ty - startTileY) * tileSize - offsetY;
+        ctx.drawImage(img, px, py, tileSize, tileSize);
+        resolve();
+      };
+      img.onerror = () => resolve();
+      img.src = url;
+    });
+
+  const promises: Promise<void>[] = [];
+  for (let tx = startTileX; tx <= endTileX; tx++) {
+    for (let ty = startTileY; ty <= endTileY; ty++) {
+      promises.push(loadTile(tx, ty));
+    }
+  }
+  await Promise.all(promises);
+
+  // Draw Google-style pin marker at center
+  const cx = width / 2;
+  const cy = height / 2;
+  const pinTip = cy + 4;
+  const pinCenter = pinTip - 38;
+  const pinRadius = 16;
+
+  // Shadow
+  ctx.beginPath();
+  ctx.ellipse(cx, pinTip + 3, 10, 4, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.fill();
+
+  // Pin body (teardrop)
+  ctx.beginPath();
+  ctx.moveTo(cx, pinTip);
+  ctx.bezierCurveTo(cx - 8, pinTip - 12, cx - pinRadius, pinCenter - 6, cx - pinRadius, pinCenter);
+  ctx.arc(cx, pinCenter, pinRadius, Math.PI, 0, false);
+  ctx.bezierCurveTo(cx + pinRadius, pinCenter - 6, cx + 8, pinTip - 12, cx, pinTip);
+  ctx.fillStyle = '#EA4335';
+  ctx.fill();
+
+  // Inner circle
+  ctx.beginPath();
+  ctx.arc(cx, pinCenter, 7, 0, Math.PI * 2);
+  ctx.fillStyle = '#B31412';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(cx, pinCenter, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#EA4335';
+  ctx.fill();
+
+  return canvas.toDataURL('image/jpeg', 0.85);
+}

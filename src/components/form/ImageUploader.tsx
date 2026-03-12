@@ -1,0 +1,186 @@
+import { useCallback, useRef, useState } from 'react';
+
+interface ImageUploaderProps {
+  value: string;
+  onChange: (dataUrl: string) => void;
+  label: string;
+  height?: string;
+  /** When set, the container uses aspect-ratio instead of a fixed height. */
+  aspectRatio?: number;
+  position?: { x: number; y: number };
+  onPositionChange?: (pos: { x: number; y: number }) => void;
+}
+
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v));
+}
+
+export default function ImageUploader({
+  value,
+  onChange,
+  label,
+  height = '120px',
+  aspectRatio,
+  position,
+  onPositionChange,
+}: ImageUploaderProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{
+    startX: number;
+    startY: number;
+    startPos: { x: number; y: number };
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const didDrag = useRef(false);
+  const [hovered, setHovered] = useState(false);
+
+  const posX = position?.x ?? 50;
+  const posY = position?.y ?? 50;
+
+  const handleFile = useCallback(
+    (file: File) => {
+      const img = new window.Image();
+      const reader = new FileReader();
+      reader.onload = () => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxWidth = 1600;
+          const scale = Math.min(1, maxWidth / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          onChange(canvas.toDataURL('image/jpeg', 0.85));
+          // Reset position to center on new image
+          onPositionChange?.({ x: 50, y: 50 });
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    },
+    [onChange, onPositionChange]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file?.type.startsWith('image/')) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!onPositionChange || !value) return;
+      e.preventDefault();
+      e.stopPropagation();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      didDrag.current = false;
+      dragState.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startPos: { x: posX, y: posY },
+      };
+      setDragging(true);
+    },
+    [onPositionChange, value, posX, posY]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!dragState.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dx = e.clientX - dragState.current.startX;
+      const dy = e.clientY - dragState.current.startY;
+      // Mark as a real drag once cursor moves more than 3px
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag.current = true;
+      // Convert pixel drag to percentage — scale by 2 for responsive feel
+      const newX = clamp(dragState.current.startPos.x - (dx / rect.width) * 100, 0, 100);
+      const newY = clamp(dragState.current.startPos.y - (dy / rect.height) * 100, 0, 100);
+      onPositionChange?.({ x: Math.round(newX), y: Math.round(newY) });
+    },
+    [onPositionChange]
+  );
+
+  const handlePointerUp = useCallback(() => {
+    dragState.current = null;
+    setDragging(false);
+  }, []);
+
+  const canReposition = !!onPositionChange && !!value;
+  const showHint = canReposition && hovered && !dragging;
+
+  return (
+    <div
+      ref={containerRef}
+      className="border-2 border-dashed border-gray-300 rounded-lg overflow-hidden relative"
+      style={aspectRatio ? { aspectRatio, maxHeight: height } : { height }}
+      onClick={() => {
+        if (didDrag.current) { didDrag.current = false; return; }
+        inputRef.current?.click();
+      }}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleDrop}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {value ? (
+        <>
+          <img
+            src={value}
+            alt={label}
+            className="w-full h-full object-cover select-none"
+            style={{
+              objectPosition: `${posX}% ${posY}%`,
+              cursor: canReposition ? (dragging ? 'grabbing' : 'grab') : 'pointer',
+            }}
+            draggable={false}
+            onPointerDown={canReposition ? handlePointerDown : undefined}
+            onPointerMove={canReposition ? handlePointerMove : undefined}
+            onPointerUp={canReposition ? handlePointerUp : undefined}
+          />
+          {/* Drag hint */}
+          {showHint && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none transition-opacity">
+              <span className="text-white text-xs font-medium bg-black/50 px-2.5 py-1 rounded-full">
+                Drag to reposition
+              </span>
+            </div>
+          )}
+          <button
+            className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm text-white rounded-full px-2.5 py-1 flex items-center gap-1.5 hover:bg-red-600/90 z-10 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!confirm('Delete this image?')) return;
+              onChange('');
+              onPositionChange?.({ x: 50, y: 50 });
+            }}
+          >
+            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
+              <path d="M6.5 7v4M9.5 7v4" />
+            </svg>
+            <span className="text-xs font-medium">Delete</span>
+          </button>
+        </>
+      ) : (
+        <div className="flex items-center justify-center h-full text-gray-400 text-sm cursor-pointer hover:border-gray-400">
+          {label}
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = '';
+        }}
+      />
+    </div>
+  );
+}
