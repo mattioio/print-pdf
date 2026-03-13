@@ -1,19 +1,14 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
-import { verifySession, isAdminEmail } from '../_lib/auth';
+const { neon } = require('@neondatabase/serverless');
+const { verifySession, isAdminEmail } = require('../_lib/auth');
 
-/**
- * GET  /api/admin/companies — list all companies with member counts
- * POST /api/admin/companies — create a new company
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = async function handler(req, res) {
   try {
     const session = await verifySession(req.headers.authorization);
     if (!session || !isAdminEmail(session.email)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const sql = neon(process.env.DATABASE_URL!);
+    const sql = neon(process.env.DATABASE_URL);
 
     if (req.method === 'GET') {
       const rows = await sql`
@@ -39,20 +34,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       const now = new Date().toISOString();
 
-      // Create org
       const [org] = await sql`
         INSERT INTO neon_auth.organization (id, name, slug, "createdAt")
         VALUES (gen_random_uuid(), ${name.trim()}, ${slug}, ${now})
         RETURNING id, name, slug, "createdAt"
       `;
 
-      // Add admin as owner
       await sql`
         INSERT INTO neon_auth.member (id, "organizationId", "userId", role, "createdAt")
         VALUES (gen_random_uuid(), ${org.id}, ${session.userId}, 'owner', ${now})
       `;
 
-      // Seed company_settings
       await sql`
         INSERT INTO public.company_settings (organization_id, agency_name, template_id, updated_at)
         VALUES (${org.id}, ${name.trim()}, ${templateId}, ${now})
@@ -77,4 +69,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Admin companies error:', err);
     return res.status(500).json({ error: String(err) });
   }
-}
+};

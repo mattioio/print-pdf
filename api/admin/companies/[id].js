@@ -1,26 +1,20 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { neon } from '@neondatabase/serverless';
-import { randomBytes } from 'crypto';
-import { verifySession, isAdminEmail } from '../../_lib/auth';
+const { neon } = require('@neondatabase/serverless');
+const { randomBytes } = require('crypto');
+const { verifySession, isAdminEmail } = require('../../_lib/auth');
 
-/**
- * GET  /api/admin/companies/:id — list members for a company
- * POST /api/admin/companies/:id — create an invitation for a company
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = async function handler(req, res) {
   try {
     const session = await verifySession(req.headers.authorization);
     if (!session || !isAdminEmail(session.email)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const orgId = req.query.id as string;
+    const orgId = req.query.id;
     if (!orgId) return res.status(400).json({ error: 'Missing company id' });
 
-    const sql = neon(process.env.DATABASE_URL!);
+    const sql = neon(process.env.DATABASE_URL);
 
     if (req.method === 'GET') {
-      // List members
       const members = await sql`
         SELECT u.id, u.name, u.email, u.image, m.role, m."createdAt"
         FROM neon_auth.member m
@@ -29,7 +23,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ORDER BY m."createdAt"
       `;
 
-      // List pending invitations
       const invitations = await sql`
         SELECT id, code, email, created_at, used_at
         FROM public.platform_invitations
@@ -41,7 +34,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      // Create invitation
       const { email } = req.body ?? {};
       if (!email?.trim()) {
         return res.status(400).json({ error: 'Email is required' });
@@ -63,4 +55,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Admin company detail error:', err);
     return res.status(500).json({ error: String(err) });
   }
-}
+};
