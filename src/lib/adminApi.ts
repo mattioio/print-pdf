@@ -53,12 +53,9 @@ export interface Member {
   createdAt: string;
 }
 
-export interface Invitation {
+export interface CreatedUser {
   id: string;
-  code: string;
   email: string;
-  created_at: string;
-  used_at: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -76,14 +73,14 @@ export const adminApi = {
     }),
 
   getCompanyMembers: (orgId: string) =>
-    adminFetch<{ members: Member[]; invitations: Invitation[] }>(
+    adminFetch<{ members: Member[] }>(
       `/api/admin/companies/${orgId}`,
     ),
 
-  inviteUser: (orgId: string, email: string) =>
-    adminFetch<Invitation>(`/api/admin/companies/${orgId}`, {
+  createUser: (orgId: string, email: string, password: string) =>
+    adminFetch<CreatedUser>(`/api/admin/companies/${orgId}`, {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, password }),
     }),
 };
 
@@ -112,5 +109,34 @@ export async function acceptInvite(code: string): Promise<void> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Failed to accept invite' }));
     throw new Error(body.error || 'Failed to accept invite');
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  User flags & password change                                       */
+/* ------------------------------------------------------------------ */
+
+export async function fetchUserFlags(): Promise<{ mustChangePassword: boolean }> {
+  const token = await getToken();
+  const res = await fetch('/api/me/flags', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return { mustChangePassword: false };
+  return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const token = await getToken();
+  const res = await fetch('/api/me/change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Failed to change password' }));
+    throw new Error(body.error || 'Failed to change password');
   }
 }

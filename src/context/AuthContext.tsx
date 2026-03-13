@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { authClient } from '../lib/auth';
+import { fetchUserFlags } from '../lib/adminApi';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -23,6 +24,7 @@ interface AuthState {
   user: User | null;
   organization: Organization | null;
   loading: boolean;
+  mustChangePassword: boolean;
 }
 
 interface AuthContextValue extends AuthState {
@@ -45,13 +47,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user: null,
     organization: null,
     loading: true,
+    mustChangePassword: false,
   });
 
   const refreshSession = useCallback(async () => {
     try {
       const { data } = await authClient.getSession();
       if (!data?.user) {
-        setState({ user: null, organization: null, loading: false });
+        setState({ user: null, organization: null, loading: false, mustChangePassword: false });
         return;
       }
 
@@ -61,6 +64,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: data.user.email,
         image: data.user.image,
       };
+
+      // Check if user must change password
+      let mustChangePassword = false;
+      try {
+        const flags = await fetchUserFlags();
+        mustChangePassword = flags.mustChangePassword;
+      } catch {
+        // Flags check failed — assume no change needed
+      }
 
       // Try to load active organization
       let org: Organization | null = null;
@@ -89,9 +101,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // No orgs yet — that's fine
       }
 
-      setState({ user, organization: org, loading: false });
+      setState({ user, organization: org, loading: false, mustChangePassword });
     } catch {
-      setState({ user: null, organization: null, loading: false });
+      setState({ user: null, organization: null, loading: false, mustChangePassword: false });
     }
   }, []);
 
@@ -114,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await authClient.signOut();
-    setState({ user: null, organization: null, loading: false });
+    setState({ user: null, organization: null, loading: false, mustChangePassword: false });
   }, []);
 
   const createOrganization = useCallback(async (name: string): Promise<string> => {
