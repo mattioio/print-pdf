@@ -7,9 +7,9 @@ import { authClient } from './auth';
 const DATA_API_URL = import.meta.env.VITE_DATA_API_URL;
 
 async function getToken(): Promise<string> {
-  const { data } = await authClient.getSession();
-  if (!data?.session?.token) throw new Error('Not authenticated');
-  return data.session.token;
+  const { data, error } = await authClient.token();
+  if (error || !data?.token) throw new Error('Not authenticated');
+  return data.token;
 }
 
 async function apiFetch<T = unknown>(
