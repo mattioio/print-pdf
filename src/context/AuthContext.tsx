@@ -26,7 +26,6 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -101,13 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshSession();
   }, [refreshSession]);
 
-  const signInWithGoogle = useCallback(async () => {
-    await authClient.signIn.social({
-      provider: 'google',
-      callbackURL: window.location.origin,
-    });
-  }, []);
-
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const result = await authClient.signIn.email({ email, password });
     if (result.error) throw new Error(result.error.message);
@@ -144,7 +136,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         ...state,
-        signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
         signOut,
