@@ -26,11 +26,17 @@ module.exports = async function handler(req, res) {
   const subPath = req.query.path || '';
   const targetUrl = `${NEON_AUTH_URL}/${subPath}`;
 
-  // Only forward safe headers — clean server-to-server request
+  // Forward safe headers — include Origin for CSRF validation
   const forwardHeaders = {
     'content-type': req.headers['content-type'] || 'application/json',
     'accept': req.headers['accept'] || 'application/json',
   };
+
+  // Neon Auth requires Origin header for CSRF protection on POST requests.
+  // Forward the client's real origin (e.g. https://jenkinslaw.vercel.app)
+  if (req.headers.origin) {
+    forwardHeaders['origin'] = req.headers.origin;
+  }
 
   // Forward cookies (session token from the client)
   if (req.headers.cookie) {
