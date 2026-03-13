@@ -2,7 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuid } from 'uuid';
 import { useBrochure } from '../../../context/BrochureContext';
 import { parseCoordsFromUrl, resolveAndParseCoords, generateStaticMap } from '../../../utils/maps';
-import { deleteImage } from '../../../utils/imageStore';
 import ImageUploader from '../ImageUploader';
 import { Section, SectionHeading, Label, Input, TextArea } from '../primitives';
 import type { GalleryImage } from '../../../types/brochure';
@@ -133,13 +132,12 @@ export default function PropertySection() {
 
   const removeGalleryImage = useCallback(
     (id: string) => {
-      deleteImage(`${data.id}:gallery:${id}`).catch(() => {});
       updateField(
         'galleryImages',
         gallery.filter((img) => img.id !== id)
       );
     },
-    [gallery, updateField, data.id]
+    [gallery, updateField]
   );
 
   const [dragIdx, setDragIdx] = useState<number | null>(null);

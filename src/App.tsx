@@ -1,65 +1,86 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrochureProvider } from './context/BrochureContext';
-import { createDefaultBrochure } from './utils/defaults';
-import { loadBrochureWithImages, saveBrochure, migrateImagesToIndexedDB } from './utils/storage';
 import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
+import Login from './pages/Login';
+import JoinCompany from './pages/JoinCompany';
 import Settings from './pages/Settings';
 import type { BrochureData } from './types/brochure';
 
 type Route =
   | { page: 'dashboard' }
-  | { page: 'editor'; data: BrochureData }
-  | { page: 'loading' };
+  | { page: 'editor'; data: BrochureData };
 
-export default function App() {
-  const [route, setRoute] = useState<Route>({ page: 'loading' });
+function AppRoutes() {
+  const { user, organization, loading } = useAuth();
+  const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsRevision, setSettingsRevision] = useState(0);
 
-  // Run one-time migration on mount, then show dashboard
-  useEffect(() => {
-    migrateImagesToIndexedDB().finally(() => {
-      setRoute({ page: 'dashboard' });
-    });
-  }, []);
-
-  const handleNew = useCallback(() => {
-    const brochure = createDefaultBrochure();
-    saveBrochure(brochure);
-    setRoute({ page: 'editor', data: brochure });
-  }, []);
-
-  const handleEdit = useCallback(async (id: string) => {
-    const brochure = await loadBrochureWithImages(id);
-    if (brochure) {
-      setRoute({ page: 'editor', data: brochure });
-    }
+  const handleEdit = useCallback((data: BrochureData) => {
+    setRoute({ page: 'editor', data });
   }, []);
 
   const handleBack = useCallback(() => {
     setRoute({ page: 'dashboard' });
   }, []);
 
-  if (route.page === 'loading') {
-    return null;
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-gray-400 mt-3">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
+  // Not authenticated
+  if (!user) {
+    return <Login />;
+  }
+
+  // No organization
+  if (!organization) {
+    return <JoinCompany />;
+  }
+
+  // Main app
   return (
     <>
       {route.page === 'editor' ? (
         <BrochureProvider initial={route.data} key={route.data.id}>
-          <Editor onBack={handleBack} onSettings={() => setSettingsOpen(true)} settingsRevision={settingsRevision} />
+          <Editor
+            onBack={handleBack}
+            onSettings={() => setSettingsOpen(true)}
+            settingsRevision={settingsRevision}
+          />
         </BrochureProvider>
       ) : (
         <Dashboard
-          onNew={handleNew}
           onEdit={handleEdit}
           onSettings={() => setSettingsOpen(true)}
         />
       )}
 
-      <Settings open={settingsOpen} onClose={() => { setSettingsOpen(false); setSettingsRevision((r) => r + 1); }} />
+      <Settings
+        open={settingsOpen}
+        onClose={() => {
+          setSettingsOpen(false);
+          setSettingsRevision((r) => r + 1);
+        }}
+      />
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

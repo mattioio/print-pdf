@@ -1,12 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { loadAgencySettings, saveAgencySettings } from '../utils/agency';
+import { useAuth } from '../context/AuthContext';
+import { apiCompanySettings, apiCompanyAgents, uploadImage } from '../lib/api';
+import { settingsToClient, clientToSettingsRow, type ClientCompanySettings } from '../lib/convert';
 import { FONT_OPTIONS } from '../components/pdf/shared/fonts';
-import type { AgencySettings } from '../utils/agency';
 
 interface SettingsProps {
   open: boolean;
   onClose: () => void;
 }
+
+const DEFAULT_SETTINGS: ClientCompanySettings = {
+  agency: { name: '', tagline: '', logoUrl: '', address: '', telephone: '', fax: '', website: '' },
+  accentColor: '#f3b229',
+  textColor: '#1a1a1a',
+  titleFont: 'Playfair Display',
+  bodyFont: 'Montserrat',
+  agents: [],
+};
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -17,16 +27,19 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 export default function Settings({ open, onClose }: SettingsProps) {
-  const [settings, setSettings] = useState<AgencySettings>(loadAgencySettings);
+  const { organization } = useAuth();
+  const [settings, setSettings] = useState<ClientCompanySettings>(DEFAULT_SETTINGS);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
+  const loadedOrgRef = useRef<string | null>(null);
+
+  const orgId = organization?.id ?? '';
 
   // Animate in/out
   useEffect(() => {
     if (open) {
       setAnimating(true);
-      // Force a reflow before adding the visible class so the transition fires
       requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
     } else {
       setVisible(false);
@@ -35,19 +48,38 @@ export default function Settings({ open, onClose }: SettingsProps) {
     }
   }, [open]);
 
-  // Re-load settings every time drawer opens
+  // Load settings from API when drawer opens
   useEffect(() => {
-    if (open) setSettings(loadAgencySettings());
-  }, [open]);
+    if (!open || !orgId) return;
+    if (loadedOrgRef.current === orgId) return; // already loaded for this org
 
-  // Auto-save
+    Promise.all([
+      apiCompanySettings.get(orgId),
+      apiCompanyAgents.list(orgId),
+    ]).then(([settingsRow, agentsRows]) => {
+      setSettings(settingsToClient(settingsRow, agentsRows));
+      loadedOrgRef.current = orgId;
+    }).catch((err) => {
+      console.error('Failed to load settings:', err);
+    });
+  }, [open, orgId]);
+
+  // Auto-save to API (debounced 500ms)
   useEffect(() => {
+    if (!orgId || !loadedOrgRef.current) return;
+
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveAgencySettings(settings);
+      const row = clientToSettingsRow(settings);
+      apiCompanySettings.upsert(orgId, row).catch((err) =>
+        console.error('Failed to save settings:', err),
+      );
+      apiCompanyAgents.replace(orgId, settings.agents).catch((err) =>
+        console.error('Failed to save agents:', err),
+      );
     }, 500);
     return () => clearTimeout(saveTimer.current);
-  }, [settings]);
+  }, [settings, orgId]);
 
   const updateAgency = useCallback((key: string, value: string) => {
     setSettings((prev) => ({
@@ -58,11 +90,12 @@ export default function Settings({ open, onClose }: SettingsProps) {
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const handleLogoUpload = useCallback((file: File) => {
+  const handleLogoUpload = useCallback(async (file: File) => {
+    // Resize client-side first
     const img = new window.Image();
     const reader = new FileReader();
     reader.onload = () => {
-      img.onload = () => {
+      img.onload = async () => {
         const canvas = document.createElement('canvas');
         const maxWidth = 800;
         const maxHeight = 200;
@@ -71,12 +104,24 @@ export default function Settings({ open, onClose }: SettingsProps) {
         canvas.height = img.height * scale;
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        updateAgency('logoUrl', canvas.toDataURL('image/png'));
+
+        // Convert to blob and upload
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          try {
+            const url = await uploadImage(blob, `logo-${orgId}.png`);
+            updateAgency('logoUrl', url);
+          } catch (err) {
+            console.error('Logo upload failed:', err);
+            // Fallback to base64
+            updateAgency('logoUrl', canvas.toDataURL('image/png'));
+          }
+        }, 'image/png');
       };
       img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
-  }, [updateAgency]);
+  }, [updateAgency, orgId]);
 
   const updateAgent = useCallback((index: number, field: 'name' | 'email', value: string) => {
     setSettings((prev) => {

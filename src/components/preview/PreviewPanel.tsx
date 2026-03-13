@@ -2,8 +2,10 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { usePDF } from '@react-pdf/renderer';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { useBrochure } from '../../context/BrochureContext';
+import { useAuth } from '../../context/AuthContext';
 import { templates } from '../pdf/templates';
-import { loadAgencySettings } from '../../utils/agency';
+import { apiCompanySettings, apiCompanyAgents } from '../../lib/api';
+import { settingsToClient, type ClientCompanySettings } from '../../lib/convert';
 import { checkPage1Overflow } from '../pdf/shared/columnFlow';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
@@ -21,21 +23,35 @@ interface PreviewPanelProps {
 
 export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar, settingsRevision }: PreviewPanelProps) {
   const { data } = useBrochure();
+  const { organization } = useAuth();
   const template = templates[data.templateId] ?? templates.classic;
   const TemplateComponent = template.component;
 
-  // Always use live agency settings (logo, contact info, fonts, accent) — not per-brochure snapshots
+  // Load live company settings from API (refreshes when settingsRevision changes)
+  const [companySettings, setCompanySettings] = useState<ClientCompanySettings | null>(null);
+  const orgId = organization?.id ?? '';
+
+  useEffect(() => {
+    if (!orgId) return;
+    Promise.all([
+      apiCompanySettings.get(orgId),
+      apiCompanyAgents.list(orgId),
+    ]).then(([s, a]) => setCompanySettings(settingsToClient(s, a)))
+      .catch(() => { /* use brochure defaults */ });
+  }, [orgId, settingsRevision]);
+
+  // Merge live company settings over brochure data
   const liveData = useMemo(() => {
-    const settings = loadAgencySettings();
+    if (!companySettings) return data;
     return {
       ...data,
-      agency: settings.agency,
-      accentColor: settings.accentColor,
-      textColor: settings.textColor,
-      titleFont: settings.titleFont,
-      bodyFont: settings.bodyFont,
+      agency: companySettings.agency,
+      accentColor: companySettings.accentColor,
+      textColor: companySettings.textColor,
+      titleFont: companySettings.titleFont,
+      bodyFont: companySettings.bodyFont,
     };
-  }, [data, settingsRevision]);
+  }, [data, companySettings]);
 
   const overflowed = useMemo(() => checkPage1Overflow(liveData), [liveData]);
 

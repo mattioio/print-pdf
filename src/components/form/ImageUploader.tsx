@@ -1,8 +1,9 @@
 import { useCallback, useRef, useState } from 'react';
+import { uploadImage } from '../../lib/api';
 
 interface ImageUploaderProps {
   value: string;
-  onChange: (dataUrl: string) => void;
+  onChange: (url: string) => void;
   label: string;
   height?: string;
   /** When set, the container uses aspect-ratio instead of a fixed height. */
@@ -44,12 +45,14 @@ export default function ImageUploader({
   const posX = position?.x ?? 50;
   const posY = position?.y ?? 50;
 
+  const [uploading, setUploading] = useState(false);
+
   const handleFile = useCallback(
     (file: File) => {
       const img = new window.Image();
       const reader = new FileReader();
       reader.onload = () => {
-        img.onload = () => {
+        img.onload = async () => {
           const canvas = document.createElement('canvas');
           const maxWidth = 1600;
           const scale = Math.min(1, maxWidth / img.width);
@@ -57,7 +60,21 @@ export default function ImageUploader({
           canvas.height = img.height * scale;
           const ctx = canvas.getContext('2d')!;
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          onChange(canvas.toDataURL('image/jpeg', 0.85));
+
+          // Upload to Vercel Blob
+          setUploading(true);
+          try {
+            const blob = await new Promise<Blob>((resolve) => {
+              canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.85);
+            });
+            const url = await uploadImage(blob, `img-${Date.now()}.jpg`);
+            onChange(url);
+          } catch {
+            // Fallback to base64 if upload fails
+            onChange(canvas.toDataURL('image/jpeg', 0.85));
+          } finally {
+            setUploading(false);
+          }
           // Reset position to center on new image
           onPositionChange?.({ x: 50, y: 50 });
         };
@@ -177,6 +194,11 @@ export default function ImageUploader({
             {!compact && <span className="text-xs font-medium">Delete</span>}
           </button>
         </>
+      ) : uploading ? (
+        <div className="flex flex-col items-center justify-center h-full text-gray-400 text-sm gap-1">
+          <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs">Uploading…</span>
+        </div>
       ) : (
         <div className="flex items-center justify-center h-full text-gray-400 text-sm cursor-pointer hover:border-gray-400">
           {label}
