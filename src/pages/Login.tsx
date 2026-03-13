@@ -11,11 +11,21 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
     setLoading(true);
     try {
       await signInWithEmail(email, password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message :
+        typeof err === 'string' ? err :
+        JSON.stringify(err) ?? 'Something went wrong';
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -49,7 +59,6 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              minLength={8}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
 

@@ -114,7 +114,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const result = await authClient.signIn.email({ email, password });
-    if (result.error) throw new Error(result.error.message);
+    if (result.error) throw new Error(result.error.message ?? 'Sign in failed');
+    // Verify the session was actually established (catches Safari cookie issues)
+    const check = await authClient.getSession();
+    if (!check.data?.user) {
+      throw new Error('Sign in succeeded but session was not saved. Try clearing cookies and retrying.');
+    }
     await refreshSession();
   }, [refreshSession]);
 
