@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { apiCompanySettings } from '../lib/api';
 
 export default function JoinCompany() {
   const { user, signOut, createOrganization } = useAuth();
@@ -14,14 +15,9 @@ export default function JoinCompany() {
     setError('');
     setLoading(true);
     try {
-      await createOrganization(companyName.trim());
-      // Initialize default company settings
-      // The org was just created and set active — refreshSession was called,
-      // so useAuth will re-render and navigate away from this page.
-      // But we also seed the company_settings row.
-      // We do this in a fire-and-forget because the org ID comes from the
-      // refreshed auth state (which we don't have here yet).
-      // Instead, the Settings page will upsert on first save.
+      const orgId = await createOrganization(companyName.trim());
+      // Seed company_settings with the name so it shows up in Settings immediately
+      apiCompanySettings.upsert(orgId, { agency_name: companyName.trim() }).catch(() => {});
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create company');
       setLoading(false);

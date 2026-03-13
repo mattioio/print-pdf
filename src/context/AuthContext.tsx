@@ -30,7 +30,7 @@ interface AuthContextValue extends AuthState {
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
-  createOrganization: (name: string) => Promise<void>;
+  createOrganization: (name: string) => Promise<string>;
   setActiveOrganization: (orgId: string) => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -125,14 +125,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({ user: null, organization: null, loading: false });
   }, []);
 
-  const createOrganization = useCallback(async (name: string) => {
+  const createOrganization = useCallback(async (name: string): Promise<string> => {
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const result = await authClient.organization.create({ name, slug });
     if (result.error) throw new Error(result.error.message);
-    if (result.data) {
-      await authClient.organization.setActive({ organizationId: result.data.id });
-      await refreshSession();
-    }
+    if (!result.data) throw new Error('No data returned from organization create');
+    await authClient.organization.setActive({ organizationId: result.data.id });
+    await refreshSession();
+    return result.data.id;
   }, [refreshSession]);
 
   const setActiveOrganization = useCallback(async (orgId: string) => {
