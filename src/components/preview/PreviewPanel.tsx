@@ -25,7 +25,7 @@ export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar, settin
   const { data } = useBrochure();
   const { organization } = useAuth();
   const template = templates[data.templateId] ?? templates.classic;
-  const TemplateComponent = template.component;
+  const TemplateComponent = template.pdfComponent;
 
   // Load live company settings from API (refreshes when settingsRevision changes)
   const [companySettings, setCompanySettings] = useState<ClientCompanySettings | null>(null);

@@ -145,6 +145,7 @@ export interface ClientCompanySettings {
   textColor: string;
   titleFont: string;
   bodyFont: string;
+  templateId: string;
   agents: ContactPerson[];
 }
 
@@ -166,6 +167,7 @@ export function settingsToClient(
     textColor: row?.text_color ?? '#1a1a1a',
     titleFont: row?.title_font ?? 'Playfair Display',
     bodyFont: row?.body_font ?? 'Montserrat',
+    templateId: row?.template_id ?? 'classic',
     agents: agents.map((a) => ({ name: a.name, email: a.email })),
   };
 }

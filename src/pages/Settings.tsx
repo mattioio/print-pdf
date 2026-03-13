@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: ClientCompanySettings = {
   textColor: '#1a1a1a',
   titleFont: 'Playfair Display',
   bodyFont: 'Montserrat',
+  templateId: 'classic',
   agents: [],
 };
 

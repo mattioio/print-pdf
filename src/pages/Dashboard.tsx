@@ -3,16 +3,19 @@ import { useAuth } from '../context/AuthContext';
 import { apiBrochures, apiCompanySettings, apiCompanyAgents } from '../lib/api';
 import { rowToBrochure, settingsToClient } from '../lib/convert';
 import { createDefaultBrochureForOrg } from '../utils/defaults';
+import { isAdmin } from '../lib/admin';
 import type { BrochureData } from '../types/brochure';
 import type { BrochureRow } from '../lib/api';
 
 interface DashboardProps {
   onEdit: (data: BrochureData) => void;
   onSettings: () => void;
+  onAdmin: () => void;
 }
 
-export default function Dashboard({ onEdit, onSettings }: DashboardProps) {
+export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProps) {
   const { organization, user, signOut } = useAuth();
+  const showAdmin = isAdmin(user?.email);
   const [rows, setRows] = useState<BrochureRow[]>([]);
   const [companyName, setCompanyName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -52,7 +55,7 @@ export default function Dashboard({ onEdit, onSettings }: DashboardProps) {
         apiCompanyAgents.list(orgId),
       ]);
       const clientSettings = settingsToClient(settings, agents);
-      const data = createDefaultBrochureForOrg(clientSettings);
+      const data = createDefaultBrochureForOrg(clientSettings, clientSettings.templateId);
       const row = await apiBrochures.create({
         organization_id: orgId,
         created_by: user.id,
@@ -142,7 +145,20 @@ export default function Dashboard({ onEdit, onSettings }: DashboardProps) {
 
           <div className="flex-1" />
 
-          {/* User avatar + settings */}
+          {/* Admin button (platform admins only) */}
+          {showAdmin && (
+            <button
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
+              onClick={onAdmin}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+              Admin
+            </button>
+          )}
+
+          {/* Settings */}
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
             onClick={onSettings}
