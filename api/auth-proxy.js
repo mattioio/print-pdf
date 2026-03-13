@@ -22,8 +22,8 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ error: 'NEON_AUTH_URL not configured' });
   }
 
-  const pathSegments = req.query.path || [];
-  const subPath = Array.isArray(pathSegments) ? pathSegments.join('/') : pathSegments;
+  // Extract the sub-path from the query param set by vercel.json rewrite
+  const subPath = req.query.path || '';
   const targetUrl = `${NEON_AUTH_URL}/${subPath}`;
 
   // Only forward safe headers — clean server-to-server request
