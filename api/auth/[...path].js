@@ -5,39 +5,44 @@
  * SameSite=Lax cookies, which Safari/iPad refuses to store for
  * cross-origin requests. By proxying through our own domain, cookies
  * are same-origin and work everywhere.
- *
- * The Vercel rewrite approach doesn't work because Neon Auth validates
- * the Origin header. This serverless function sets the correct headers.
  */
 
 const NEON_AUTH_URL = process.env.NEON_AUTH_URL || process.env.VITE_NEON_AUTH_URL;
 
 module.exports = async function handler(req, res) {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  }
+
+  if (!NEON_AUTH_URL) {
+    return res.status(500).json({ error: 'NEON_AUTH_URL not configured' });
+  }
+
   const pathSegments = req.query.path || [];
   const subPath = Array.isArray(pathSegments) ? pathSegments.join('/') : pathSegments;
   const targetUrl = `${NEON_AUTH_URL}/${subPath}`;
 
-  // Build headers to forward (skip host-related ones)
-  const forwardHeaders = {};
-  const skipHeaders = new Set(['host', 'connection', 'transfer-encoding', 'content-length']);
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (!skipHeaders.has(key.toLowerCase())) {
-      forwardHeaders[key] = value;
-    }
-  }
+  // Only forward safe headers — clean server-to-server request
+  const forwardHeaders = {
+    'content-type': req.headers['content-type'] || 'application/json',
+    'accept': req.headers['accept'] || 'application/json',
+  };
 
-  // Set the correct Origin for Neon Auth validation
-  const neonOrigin = new URL(NEON_AUTH_URL).origin;
-  forwardHeaders['origin'] = neonOrigin;
-  forwardHeaders['referer'] = neonOrigin + '/';
-
-  // Forward cookies from the client
+  // Forward cookies (session token from the client)
   if (req.headers.cookie) {
     forwardHeaders['cookie'] = req.headers.cookie;
   }
 
+  // Forward authorization if present
+  if (req.headers['authorization']) {
+    forwardHeaders['authorization'] = req.headers['authorization'];
+  }
+
   try {
-    // Build the fetch options
     const fetchOpts = {
       method: req.method,
       headers: forwardHeaders,
@@ -47,60 +52,42 @@ module.exports = async function handler(req, res) {
     // Forward body for POST/PUT/PATCH
     if (['POST', 'PUT', 'PATCH'].includes(req.method) && req.body) {
       fetchOpts.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-      if (!forwardHeaders['content-type']) {
-        forwardHeaders['content-type'] = 'application/json';
-      }
     }
 
     const upstream = await fetch(targetUrl, fetchOpts);
 
-    // Copy response headers
-    const responseHeaders = {};
-    for (const [key, value] of upstream.headers.entries()) {
-      const lower = key.toLowerCase();
-      // Skip hop-by-hop headers
-      if (['transfer-encoding', 'connection', 'keep-alive'].includes(lower)) continue;
-      responseHeaders[key] = value;
-    }
+    // Forward Content-Type
+    const ct = upstream.headers.get('content-type');
+    if (ct) res.setHeader('content-type', ct);
 
     // Handle Set-Cookie: rewrite to work on our domain
     const setCookies = upstream.headers.getSetCookie?.() || [];
     if (setCookies.length > 0) {
       const rewritten = setCookies.map(rewriteCookie);
-      // Vercel requires set-cookie as array
       res.setHeader('set-cookie', rewritten);
     }
-
-    // Remove CORS headers — the request is now same-origin
-    res.removeHeader('access-control-allow-origin');
-    res.removeHeader('access-control-allow-credentials');
 
     const body = await upstream.text();
     res.status(upstream.status).send(body);
   } catch (err) {
-    console.error('Auth proxy error:', err);
-    res.status(502).json({ error: 'Auth proxy error', message: err.message });
+    console.error('Auth proxy error:', err.message);
+    res.status(502).json({ error: 'Auth proxy failed', detail: err.message });
   }
 };
 
 /**
  * Rewrite a Set-Cookie string:
- *  - Remove Domain (so it defaults to our domain)
- *  - Set SameSite=Lax (safe for same-origin)
- *  - Ensure Secure flag
+ *  - Remove Domain (defaults to our domain)
  *  - Set Path=/
+ *  - Ensure Secure + SameSite=Lax
  */
 function rewriteCookie(cookie) {
-  // Remove domain attribute
   let result = cookie.replace(/;\s*domain=[^;]*/gi, '');
-  // Ensure path is /
   result = result.replace(/;\s*path=[^;]*/gi, '');
   result += '; Path=/';
-  // Ensure secure
   if (!/;\s*secure/i.test(result)) {
     result += '; Secure';
   }
-  // Ensure SameSite=Lax (same-origin now, so Lax is fine)
   result = result.replace(/;\s*samesite=[^;]*/gi, '');
   result += '; SameSite=Lax';
   return result;
