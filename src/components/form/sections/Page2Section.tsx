@@ -6,7 +6,7 @@ export default function Page2Section() {
 
   return (
     <>
-      <SectionHeading>Page 2 Details</SectionHeading>
+      <SectionHeading>Additional Info</SectionHeading>
       <Section>
         <div>
           <Label>Lease</Label>

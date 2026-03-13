@@ -1,15 +1,14 @@
+/**
+ * Legacy default brochure factory using localStorage agency settings.
+ * Kept for migration purposes — new code should use createDefaultBrochureForOrg.
+ */
 import { v4 as uuid } from 'uuid';
 import type { BrochureData } from '../types/brochure';
-import type { ClientCompanySettings } from '../lib/convert';
+import { loadAgencySettings } from './agency';
 
-// Keep old localStorage-based default for migration
-export { createDefaultBrochure } from './defaultsLegacy';
-
-/**
- * Create a default brochure using company settings from the API.
- */
-export function createDefaultBrochureForOrg(settings: ClientCompanySettings): BrochureData {
+export function createDefaultBrochure(): BrochureData {
   const now = new Date().toISOString();
+  const settings = loadAgencySettings();
   return {
     id: uuid(),
     name: 'New Brochure',

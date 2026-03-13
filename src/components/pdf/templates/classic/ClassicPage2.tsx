@@ -1,10 +1,21 @@
 import { Page, View, Text, Image } from '@react-pdf/renderer';
 import type { BrochureData } from '../../../../types/brochure';
 import RichText from '../../shared/RichText';
-import { shared as s, DISCLAIMER } from './classicStyles';
+import { shared as s } from './classicStyles';
+
+/** Mix a hex colour toward white by a given factor (0 = original, 1 = white). */
+function lighten(hex: string, factor: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * factor);
+  return `#${[mix(r), mix(g), mix(b)].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
 
 export default function ClassicPage2({ data }: { data: BrochureData }) {
   const accent = data.accentColor || '#f3b229';
+  const textColor = data.textColor || '#1a1a1a';
   const bodyFont = data.bodyFont || 'Montserrat';
 
   return (
@@ -90,12 +101,11 @@ export default function ClassicPage2({ data }: { data: BrochureData }) {
       </View>
 
       {/* ── Footer ── */}
-      <View style={s.footerWrap} fixed>
-        <Text style={s.disclaimer}>
-          <Text style={s.disclaimerBold}>Misrepresentation Act: </Text>
-          {DISCLAIMER}
-        </Text>
-      </View>
+      {data.disclaimer ? (
+        <View style={s.footerWrap}>
+          <RichText text={data.disclaimer} style={[s.disclaimer, { color: lighten(textColor, 0.4) }]} />
+        </View>
+      ) : null}
     </Page>
   );
 }

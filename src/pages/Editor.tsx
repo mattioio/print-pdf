@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import FormPanel from '../components/form/FormPanel';
 import PreviewPanel from '../components/preview/PreviewPanel';
+import MarkdownHelp from '../components/MarkdownHelp';
 
 interface EditorProps {
   onBack: () => void;
   onSettings: () => void;
+  settingsRevision: number;
 }
 
-export default function Editor({ onBack, onSettings }: EditorProps) {
+export default function Editor({ onBack, onSettings, settingsRevision }: EditorProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mdHelpOpen, setMdHelpOpen] = useState(false);
 
   return (
     <div className="h-screen flex flex-col">
@@ -24,6 +27,17 @@ export default function Editor({ onBack, onSettings }: EditorProps) {
           Property Brochure Builder
         </span>
         <div className="flex-1" />
+        <button
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
+          onClick={() => setMdHelpOpen(true)}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7V4h16v3" />
+            <path d="M9 20h6" />
+            <path d="M12 4v16" />
+          </svg>
+          Formatting
+        </button>
         <button
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
           onClick={onSettings}
@@ -48,9 +62,11 @@ export default function Editor({ onBack, onSettings }: EditorProps) {
           <PreviewPanel
             sidebarCollapsed={collapsed}
             onToggleSidebar={() => setCollapsed((c) => !c)}
+            settingsRevision={settingsRevision}
           />
         </div>
       </div>
+      <MarkdownHelp open={mdHelpOpen} onClose={() => setMdHelpOpen(false)} />
     </div>
   );
 }

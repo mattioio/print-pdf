@@ -1,6 +1,8 @@
 import { createContext, useContext, useReducer, useCallback, useRef, useEffect, useState } from 'react';
 import type { BrochureData } from '../types/brochure';
-import { saveBrochure } from '../utils/storage';
+import { apiBrochures } from '../lib/api';
+import { brochureToRow } from '../lib/convert';
+import { useAuth } from './AuthContext';
 
 /* ── Undo / redo constants ── */
 const MAX_HISTORY = 30;
@@ -95,6 +97,7 @@ export function BrochureProvider({
   initial: BrochureData;
   children: React.ReactNode;
 }) {
+  const { organization } = useAuth();
   const [state, dispatch] = useReducer(reducer, {
     past: [],
     present: { ...initial, name: deriveName(initial) },
@@ -137,15 +140,22 @@ export function BrochureProvider({
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  // Auto-save to localStorage (debounced 1s)
+  // Auto-save to API (debounced 1s)
   useEffect(() => {
+    const orgId = organization?.id;
+    if (!orgId) return;
+
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      saveBrochure(state.present);
-      setLastSavedAt(new Date());
+      const row = brochureToRow(state.present, orgId);
+      apiBrochures.update(state.present.id, row).then(() => {
+        setLastSavedAt(new Date());
+      }).catch((err) => {
+        console.error('Auto-save failed:', err);
+      });
     }, 1000);
     return () => clearTimeout(saveTimer.current);
-  }, [state.present]);
+  }, [state.present, organization?.id]);
 
   return (
     <BrochureContext.Provider

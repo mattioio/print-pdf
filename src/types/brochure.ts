@@ -15,6 +15,12 @@ export interface AccommodationRow {
   sqM: number | null;
 }
 
+export interface GalleryImage {
+  id: string;
+  url: string;
+  position: { x: number; y: number };
+}
+
 export interface ContactPerson {
   name: string;
   email: string;
@@ -31,6 +37,10 @@ export interface BrochureData {
   agency: AgencyDetails;
   heroImageUrl: string;
   heroImagePosition: { x: number; y: number };
+  heroSize: 'landscape' | 'tall';
+  heroZoom: number;
+  showGallery: boolean;
+  galleryImages: GalleryImage[];
   headline: string;
   locationName: string;
   propertyAddress: string;
@@ -38,6 +48,7 @@ export interface BrochureData {
   rent: string;
   premisesLicence: string;
   accommodationDescription: string;
+  accommodationExtra: string;
   accommodation: AccommodationRow[];
   useClasses: string[];
   useAlternatives: boolean;
@@ -50,7 +61,9 @@ export interface BrochureData {
   epc: string;
   mapUrl: string;
   mapImageUrl: string;
+  disclaimer: string;
   accentColor: string;
+  textColor: string;
 }
 
 export interface TemplateDefinition {

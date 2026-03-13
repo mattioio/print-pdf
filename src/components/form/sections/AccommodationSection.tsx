@@ -2,7 +2,7 @@ import { useBrochure } from '../../../context/BrochureContext';
 import { v4 as uuid } from 'uuid';
 import type { AccommodationRow, BrochureData } from '../../../types/brochure';
 import { buildContentStream, allocateColumns } from '../../pdf/shared/columnFlow';
-import { Section, SectionHeading, Label, Input, TextArea } from '../primitives';
+import { Section, SectionHeading, Label, TextArea } from '../primitives';
 
 const P1_BODY_HEIGHT = 260;
 
@@ -76,64 +76,11 @@ export default function AccommodationSection() {
 
   return (
     <>
-      <SectionHeading>Accommodation</SectionHeading>
-      <Section>
-        <div>
-          <Label>Description</Label>
-          <TextArea
-            value={data.accommodationDescription}
-            onChange={(v) => updateField('accommodationDescription', v)}
-            placeholder="e.g. The unit is arranged over Ground, Basement, First, Second and Third floors..."
-            rows={2}
-          />
-        </div>
-        <div>
-          <Label>Rent</Label>
-          <Input
-            value={data.rent}
-            onChange={(v) => updateField('rent', v)}
-            placeholder="e.g. Upon Application."
-          />
-        </div>
-      </Section>
-
-      {/* Premises Licence — optional toggle card */}
-      <div className="bg-white rounded-lg border border-gray-100 px-3 py-2.5">
-        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-          <div className="relative flex items-center">
-            <input
-              type="checkbox"
-              className="peer sr-only"
-              checked={!!data.premisesLicence}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  updateField('premisesLicence', 'The premises benefits from a 24 hour licence');
-                } else {
-                  updateField('premisesLicence', '');
-                }
-              }}
-            />
-            <div className="h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-amber-500 transition-colors" />
-            <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
-          </div>
-          <span className="text-sm font-medium text-gray-700">Premises Licence</span>
-        </label>
-        {!!data.premisesLicence && (
-          <div className="mt-2.5 pt-2.5 border-t border-gray-100">
-            <Input
-              value={data.premisesLicence}
-              onChange={(v) => updateField('premisesLicence', v)}
-              placeholder="e.g. The premises benefits from a 24 hour licence"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Schedule — own card */}
+      <SectionHeading>Schedule</SectionHeading>
       <Section>
         <div>
           <div className="flex items-center justify-between mb-1">
-            <Label>Schedule</Label>
+            <span />
             <button
               className="text-xs text-amber-600 hover:text-amber-700 font-medium"
               onClick={addRow}
@@ -214,6 +161,15 @@ export default function AccommodationSection() {
               <span className="font-medium">Layout note:</span> Content may not fit on page 1. Consider reducing rows or shortening descriptions.
             </div>
           )}
+        </div>
+        <div>
+          <Label>Extra Info</Label>
+          <TextArea
+            value={data.accommodationExtra ?? ''}
+            onChange={(v) => updateField('accommodationExtra', v)}
+            placeholder="Additional info shown after the schedule table..."
+            rows={2}
+          />
         </div>
       </Section>
     </>

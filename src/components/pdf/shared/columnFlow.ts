@@ -9,11 +9,27 @@
 import type { BrochureData, AccommodationRow } from '../../../types/brochure';
 import { generateUseText } from '../../../utils/useText';
 
+/* ═══════════════ Layout constants ═══════════════ */
+
+export const HERO_HEIGHTS = { landscape: 368, tall: 500 } as const;
+export const BASE_BODY_HEIGHT = 260;
+
+/* ── Auto-compact density for accommodation table ── */
+const COMPACT_THRESHOLD = 7;
+const ULTRA_COMPACT_THRESHOLD = 14;
+
+export function getTableDensity(rowCount: number): TableDensity {
+  if (rowCount > ULTRA_COMPACT_THRESHOLD) return { paddingVertical: 1.5, fontSize: 6, headerFontSize: 5.5 };
+  if (rowCount > COMPACT_THRESHOLD) return { paddingVertical: 2, fontSize: 6.5, headerFontSize: 5.5 };
+  return { paddingVertical: 3.5, fontSize: 8.5, headerFontSize: 7.5 };
+}
+
 /* ═══════════════ Types ═══════════════ */
 
 export type ContentBlock =
   | { type: 'label'; text: string; isFirst: boolean }
   | { type: 'richtext'; text: string }
+  | { type: 'column-break' }
   | {
       type: 'table';
       rows: AccommodationRow[];
@@ -21,6 +37,7 @@ export type ContentBlock =
       descriptionText: string;
       hasTotalRow: boolean;
       density: TableDensity;
+      extraText?: string;
     };
 
 export interface TableDensity {
@@ -37,6 +54,7 @@ export interface MeasuredBlock {
 export interface ColumnAllocation {
   left: MeasuredBlock[];
   right: MeasuredBlock[];
+  overflowed: boolean;
 }
 
 /* ═══════════════ Height estimation constants ═══════════════ */
@@ -72,12 +90,14 @@ function estimateTableHeight(
   hasTotalRow: boolean,
   hasDescription: boolean,
   descriptionText: string,
+  extraText?: string,
 ): number {
   // Use same simple row heights as the existing density tiers
   const rowH = rowCount > 14 ? 9 : rowCount > 7 ? 11 : 15;
   let h = TABLE_HEADER_H + rowCount * rowH;
   if (hasTotalRow) h += TABLE_TOTAL_H;
   if (hasDescription) h += estimateTextHeight(descriptionText) + TABLE_DESC_MB;
+  if (extraText) h += TABLE_DESC_MB + estimateTextHeight(extraText);
   return h;
 }
 
@@ -87,6 +107,8 @@ function measureBlock(block: ContentBlock): number {
       return block.isFirst ? LABEL_H : LABEL_H + LABEL_SPACING;
     case 'richtext':
       return estimateTextHeight(block.text);
+    case 'column-break':
+      return 0;
     case 'table':
       return estimateTableHeight(
         block.rows.length,
@@ -94,8 +116,21 @@ function measureBlock(block: ContentBlock): number {
         block.hasTotalRow,
         block.hasDescription,
         block.descriptionText,
+        block.extraText,
       );
   }
+}
+
+/* ═══════════════ Auto-generate accommodation blurb ═══════════════ */
+
+function generateAccommodationDescription(floors: string[]): string {
+  if (floors.length === 0) return '';
+  const suffix = 'and has the following approximate net internal areas:';
+  if (floors.length === 1) {
+    return `The unit is arranged over the ${floors[0]} only ${suffix}`;
+  }
+  const list = floors.slice(0, -1).join(', ') + ' and ' + floors[floors.length - 1];
+  return `The unit is arranged over ${list} floors ${suffix}`;
 }
 
 /* ═══════════════ Content stream builder ═══════════════ */
@@ -115,34 +150,42 @@ export function buildContentStream(
     isFirst = false;
   };
 
+  // Left column content
   // 1. Location
   addSection('Location', data.locationDescription);
 
-  // 2. Rent
-  addSection('Rent', data.rent);
-
-  // 3. Premises Licence (optional)
-  if (data.premisesLicence) {
-    addSection('Premises Licence', data.premisesLicence);
-  }
-
-  // 4. Accommodation (table — atomic unit)
-  blocks.push({ type: 'label', text: 'Accommodation', isFirst });
-  isFirst = false;
-  blocks.push({
-    type: 'table',
-    rows: filledRows,
-    hasDescription: !!data.accommodationDescription,
-    descriptionText: data.accommodationDescription,
-    hasTotalRow: filledRows.length > 1,
-    density,
-  });
-
-  // 5. Use (optional — override text takes priority, else generate from classes)
+  // 2. Use (optional — override text takes priority, else generate from classes)
   const useText = data.useDescription || generateUseText(data.useClasses ?? [], data.useAlternatives ?? false);
   if (useText) {
     addSection('Use', useText);
   }
+
+  // 3. Rent
+  addSection('Rent', data.rent);
+
+  // 4. Premises Licence (optional)
+  if (data.premisesLicence) {
+    addSection('Premises Licence', data.premisesLicence);
+  }
+
+  // Force right column — Accommodation always starts at top right
+  blocks.push({ type: 'column-break' });
+
+  // 5. Accommodation (table — atomic unit)
+  blocks.push({ type: 'label', text: 'Accommodation', isFirst: true });
+  isFirst = false;
+  const autoDescription = generateAccommodationDescription(
+    filledRows.map((r) => r.floor).filter(Boolean),
+  );
+  blocks.push({
+    type: 'table',
+    rows: filledRows,
+    hasDescription: !!autoDescription,
+    descriptionText: autoDescription,
+    hasTotalRow: filledRows.length > 1,
+    density,
+    extraText: data.accommodationExtra?.trim() || undefined,
+  });
 
   return blocks;
 }
@@ -187,6 +230,17 @@ export function allocateColumns(
 
   while (i < blocks.length) {
     const block = blocks[i];
+
+    // Column break — force switch to right column
+    if (block.type === 'column-break') {
+      if (!switched) {
+        switched = true;
+        remaining = availableHeight;
+      }
+      i++;
+      continue;
+    }
+
     const height = measureBlock(block);
 
     // Fits in current column?
@@ -289,5 +343,29 @@ export function allocateColumns(
     i++;
   }
 
-  return { left, right };
+  // Check if content overflows either column
+  const leftTotal = left.reduce((sum, mb) => sum + mb.height, 0);
+  const rightTotal = right.reduce((sum, mb) => sum + mb.height, 0);
+  const overflowed = leftTotal > availableHeight || rightTotal > availableHeight;
+
+  return { left, right, overflowed };
+}
+
+/* ═══════════════ Overflow check for page 1 ═══════════════ */
+
+/**
+ * Returns true if page 1 body content overflows the available space.
+ * Use this to warn the user in the editor before they download.
+ */
+export function checkPage1Overflow(data: BrochureData): boolean {
+  const filledRows = data.accommodation.filter(
+    (r) => r.floor?.trim() || (r.sqFt != null && r.sqFt !== 0),
+  );
+  const density = getTableDensity(filledRows.length);
+  const heroSize = data.heroSize ?? 'landscape';
+  const heroHeight = HERO_HEIGHTS[heroSize];
+  const bodyHeight = BASE_BODY_HEIGHT - (heroHeight - HERO_HEIGHTS.landscape);
+  const stream = buildContentStream(data, filledRows, density);
+  const { overflowed } = allocateColumns(stream, bodyHeight);
+  return overflowed;
 }

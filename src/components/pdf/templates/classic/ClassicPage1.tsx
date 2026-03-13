@@ -1,9 +1,9 @@
 import { Page, View, Text, Image, StyleSheet, Svg, Path, Circle } from '@react-pdf/renderer';
 import type { BrochureData } from '../../../../types/brochure';
 import RichText from '../../shared/RichText';
-import { buildContentStream, allocateColumns } from '../../shared/columnFlow';
+import { buildContentStream, allocateColumns, getTableDensity, HERO_HEIGHTS, BASE_BODY_HEIGHT } from '../../shared/columnFlow';
 import type { MeasuredBlock } from '../../shared/columnFlow';
-import { shared, DISCLAIMER } from './classicStyles';
+import { shared } from './classicStyles';
 
 /* ── Page-1-specific styles (everything else comes from classicStyles.ts) ── */
 const s = StyleSheet.create({
@@ -65,16 +65,15 @@ const s = StyleSheet.create({
   // ── Hero image ──
   heroImage: {
     width: '100%',
-    height: 368,
     objectFit: 'cover',
   },
   heroPlaceholder: {
     width: '100%',
-    height: 368,
     backgroundColor: '#f0f0f0',
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   heroPlaceholderText: {
     color: '#ccc',
     fontSize: 11,
@@ -149,8 +148,9 @@ const s = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 3.5,
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#f0f0f0',
+  },
+  tableRowStriped: {
+    backgroundColor: '#f7f7f7',
   },
   tableFloor: {
     fontSize: 8.5,
@@ -166,75 +166,75 @@ const s = StyleSheet.create({
   },
   tableSqM: {
     fontSize: 7,
-    color: '#aaa',
+    color: '#888',
     width: '26%',
     textAlign: 'right',
   },
   tableTotalRow: {
     flexDirection: 'row',
-    paddingTop: 5,
-    paddingBottom: 3,
-    marginTop: 1,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginTop: 4,
+    marginLeft: -8,
+    marginRight: -8,
+    borderRadius: 3,
   },
 
-  // ── Footer (with background colour, slightly different from shared) ──
-  footerWrap: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#f5f5f5',
-  },
-  disclaimer: {
+  // ── Gallery strip (page 2) ──
+  gallerySection: {
     paddingHorizontal: 40,
-    paddingVertical: 10,
-    fontSize: 5.5,
-    color: '#999',
-    lineHeight: 1.5,
+    marginTop: 20,
   },
-  disclaimerBold: {
-    fontWeight: 700,
-    fontSize: 5.5,
-    color: '#777',
+  galleryStrip: {
+    flexDirection: 'row',
+    gap: 8,
   },
+  galleryImage: {
+    flex: 1,
+    objectFit: 'cover',
+    borderRadius: 3,
+  },
+
 });
+
+/** Mix a hex colour toward white by a given factor (0 = original, 1 = white). */
+function lighten(hex: string, factor: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * factor);
+  return `#${[mix(r), mix(g), mix(b)].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
 
 function formatNumber(n: number | null): string {
   if (n === null || isNaN(n)) return '—';
   return n.toLocaleString('en-GB');
 }
 
-/* ── Auto-compact density for accommodation table ── */
-const COMPACT_THRESHOLD = 7;
-const ULTRA_COMPACT_THRESHOLD = 14;
-
-function getTableDensity(rowCount: number) {
-  if (rowCount > ULTRA_COMPACT_THRESHOLD) return { paddingVertical: 1.5, fontSize: 6, headerFontSize: 5.5 };
-  if (rowCount > COMPACT_THRESHOLD) return { paddingVertical: 2, fontSize: 6.5, headerFontSize: 5.5 };
-  return { paddingVertical: 3.5, fontSize: 8.5, headerFontSize: 7.5 };
-}
+/* getTableDensity, HERO_HEIGHTS, BASE_BODY_HEIGHT imported from columnFlow */
 
 /* ── Shared footer used on both pages ── */
-function Footer() {
+function Footer({ text, textColor }: { text: string; textColor: string }) {
+  if (!text) return null;
+  const color = lighten(textColor, 0.4);
   return (
-    <View style={s.footerWrap}>
-      <Text style={s.disclaimer}>
-        <Text style={s.disclaimerBold}>Misrepresentation Act: </Text>
-        {DISCLAIMER}
-      </Text>
+    <View style={shared.footerWrap}>
+      <RichText text={text} style={[shared.disclaimer, { color }]} />
     </View>
   );
 }
 
-/* ── Available body height on page 1 ── */
-const P1_BODY_HEIGHT = 260;
+/* Hero heights & body height imported from columnFlow */
 
 /* ── Render a single content block as PDF elements ── */
 function renderBlock(
   mb: MeasuredBlock,
   idx: number,
   bodyFont: string,
-  accent: string,
+  _accent: string,
+  textColor: string,
+  bodyColor: string,
 ): React.ReactNode {
   const { block } = mb;
   switch (block.type) {
@@ -242,26 +242,26 @@ function renderBlock(
       return (
         <Text
           key={`lbl-${idx}`}
-          style={[block.isFirst ? shared.sectionLabel : shared.sectionLabelSpaced, { fontFamily: bodyFont }]}
+          style={[block.isFirst ? shared.sectionLabel : shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}
         >
           {block.text}
         </Text>
       );
     case 'richtext':
-      return <RichText key={`rt-${idx}`} text={block.text} style={s.bodyText} />;
+      return <RichText key={`rt-${idx}`} text={block.text} style={[s.bodyText, { color: bodyColor }]} />;
     case 'table':
       return (
         <View key={`tbl-${idx}`}>
           {block.hasDescription && (
             <View style={{ marginBottom: 8 }}>
-              <RichText text={block.descriptionText} style={s.bodyText} />
+              <RichText text={block.descriptionText} style={[s.bodyText, { color: bodyColor }]} />
             </View>
           )}
           {/* Table rows (no header) */}
-          {block.rows.map((row) => (
-            <View style={[s.tableRow, { paddingVertical: block.density.paddingVertical }]} key={row.id}>
-              <Text style={[s.tableFloor, { fontSize: block.density.fontSize }]}>{row.floor}</Text>
-              <Text style={[s.tableSqFt, { fontSize: block.density.fontSize }]}>
+          {block.rows.map((row, ri) => (
+            <View style={[s.tableRow, ri % 2 === 1 ? s.tableRowStriped : {}, { paddingVertical: block.density.paddingVertical }]} key={row.id}>
+              <Text style={[s.tableFloor, { fontSize: block.density.fontSize, color: bodyColor }]}>{row.floor}</Text>
+              <Text style={[s.tableSqFt, { fontSize: block.density.fontSize, color: textColor }]}>
                 {row.sqFt !== null ? `${formatNumber(row.sqFt)} sq ft` : '—'}
               </Text>
               <Text style={[s.tableSqM, { fontSize: block.density.fontSize - 0.5 }]}>
@@ -270,14 +270,19 @@ function renderBlock(
             </View>
           ))}
           {block.hasTotalRow && (
-            <View style={s.tableTotalRow}>
-              <Text style={[s.tableFloor, { fontWeight: 700, color: '#1a1a1a' }]}>Total</Text>
-              <Text style={[s.tableSqFt, { color: accent }]}>
+            <View style={[s.tableTotalRow, { backgroundColor: '#f0f0f0' }]}>
+              <Text style={[s.tableFloor, { fontWeight: 700, color: textColor }]}>Total</Text>
+              <Text style={[s.tableSqFt, { fontWeight: 700, color: textColor }]}>
                 {formatNumber(block.rows.reduce((sum, r) => sum + (r.sqFt ?? 0), 0))} sq ft
               </Text>
-              <Text style={s.tableSqM}>
+              <Text style={[s.tableSqM, { color: bodyColor }]}>
                 {formatNumber(block.rows.reduce((sum, r) => sum + (r.sqM ?? 0), 0))} m²
               </Text>
+            </View>
+          )}
+          {block.extraText && (
+            <View style={{ marginTop: 8 }}>
+              <RichText text={block.extraText} style={[s.bodyText, { color: bodyColor }]} />
             </View>
           )}
         </View>
@@ -287,22 +292,26 @@ function renderBlock(
 
 export default function ClassicPage1({ data }: { data: BrochureData }) {
   const accent = data.accentColor || '#f3b229';
+  const textColor = data.textColor || '#1a1a1a';
+  const bodyColor = lighten(textColor, 0.15);
   const titleFont = data.titleFont || 'Playfair Display';
   const bodyFont = data.bodyFont || 'Montserrat';
   const filledRows = data.accommodation.filter((r) => r.floor?.trim() || (r.sqFt != null && r.sqFt !== 0));
   const density = getTableDensity(filledRows.length);
 
+  const heroSize = data.heroSize ?? 'landscape';
+  const HERO_HEIGHT = HERO_HEIGHTS[heroSize];
+  const bodyHeight = BASE_BODY_HEIGHT - (HERO_HEIGHT - HERO_HEIGHTS.landscape);
+  const gallery = data.showGallery ? (data.galleryImages ?? []).filter((img) => img.url) : [];
+
   // Build content stream and allocate to columns
   const stream = buildContentStream(data, filledRows, density);
-  const { left, right } = allocateColumns(stream, P1_BODY_HEIGHT);
+  const { left, right } = allocateColumns(stream, bodyHeight);
 
   return (
     <>
       {/* ═══════════════ PAGE 1 ═══════════════ */}
-      <Page size="A4" style={[s.page, { fontFamily: bodyFont, paddingBottom: 0 }]}>
-        {/* ── Top accent bar ── */}
-        <View style={[shared.topBar, { backgroundColor: accent }]} />
-
+      <Page size="A4" style={[s.page, { fontFamily: bodyFont, paddingBottom: 0, color: bodyColor }]}>
         {/* ── Agency header ── */}
         <View style={s.header}>
           {data.agency.logoUrl ? (
@@ -337,27 +346,39 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
           </View>
         </View>
 
-        {/* ── Hero photo ── */}
+        {/* ── Full-width hero + title below ── */}
         {data.heroImageUrl ? (
-          <Image
-            src={data.heroImageUrl}
-            style={[
+          (() => {
+            const z = (data.heroZoom ?? 100) / 100;
+            const px = data.heroImagePosition?.x ?? 50;
+            const py = data.heroImagePosition?.y ?? 50;
+            const imgStyle = [
               s.heroImage,
               {
-                objectPosition: `${data.heroImagePosition?.x ?? 50}% ${data.heroImagePosition?.y ?? 50}%`,
+                height: HERO_HEIGHT * z,
+                width: 595 * z,
+                objectPosition: `${px}% ${py}%`,
+                marginLeft: -(595 * (z - 1)) * (px / 100),
+                marginTop: -(HERO_HEIGHT * (z - 1)) * (py / 100),
               },
-            ]}
-          />
+            ];
+            return z > 1 ? (
+              <View style={{ width: '100%', height: HERO_HEIGHT, overflow: 'hidden' }}>
+                <Image src={data.heroImageUrl} style={imgStyle} />
+              </View>
+            ) : (
+              <Image src={data.heroImageUrl} style={imgStyle} />
+            );
+          })()
         ) : (
-          <View style={s.heroPlaceholder}>
+          <View style={[s.heroPlaceholder, { height: HERO_HEIGHT }]}>
             <Text style={s.heroPlaceholderText}>Property Photo</Text>
           </View>
         )}
 
-        {/* ── Title block ── */}
         <View style={s.titleBlock}>
-          <Text style={[s.headline, { fontFamily: bodyFont }]}>{data.headline}</Text>
-          <Text style={[s.locationName, { fontFamily: titleFont }]}>{data.locationName}</Text>
+          <Text style={[s.headline, { fontFamily: bodyFont, color: textColor }]}>{data.headline}</Text>
+          <Text style={[s.locationName, { fontFamily: titleFont, color: textColor }]}>{data.locationName}</Text>
           {data.propertyAddress ? (
             <View style={s.addressRow}>
               <Svg width="8" height="10" viewBox="0 0 8 10">
@@ -373,20 +394,17 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
         <View style={s.bodyClip}>
           <View style={s.body}>
             <View style={shared.col}>
-              {left.map((mb, i) => renderBlock(mb, i, bodyFont, accent))}
+              {left.map((mb, i) => renderBlock(mb, i, bodyFont, accent, textColor, bodyColor))}
             </View>
             <View style={shared.col}>
-              {right.map((mb, i) => renderBlock(mb, i + left.length, bodyFont, accent))}
+              {right.map((mb, i) => renderBlock(mb, i + left.length, bodyFont, accent, textColor, bodyColor))}
             </View>
           </View>
         </View>
       </Page>
 
       {/* ═══════════════ PAGE 2 ═══════════════ */}
-      <Page size="A4" style={[s.page, { fontFamily: bodyFont }]}>
-        {/* ── Top accent bar ── */}
-        <View style={[shared.topBar, { backgroundColor: accent }]} />
-
+      <Page size="A4" style={[s.page, { fontFamily: bodyFont, color: bodyColor }]}>
         {/* ── Page 2 header ── */}
         <View style={shared.p2header}>
           {data.agency.logoUrl ? (
@@ -401,33 +419,33 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
           <View style={shared.col}>
             {data.lease ? (
               <>
-                <Text style={[shared.sectionLabel, { fontFamily: bodyFont }]}>Lease</Text>
-                <RichText text={data.lease} style={shared.bodyText} />
+                <Text style={[shared.sectionLabel, { fontFamily: bodyFont, color: textColor }]}>Lease</Text>
+                <RichText text={data.lease} style={[shared.bodyText, { color: bodyColor }]} />
               </>
             ) : null}
 
-            <Text style={[data.lease ? shared.sectionLabelSpaced : shared.sectionLabel, { fontFamily: bodyFont }]}>
+            <Text style={[data.lease ? shared.sectionLabelSpaced : shared.sectionLabel, { fontFamily: bodyFont, color: textColor }]}>
               Rates
             </Text>
             <RichText
               text={data.rates || 'Interested parties are advised to make their own enquiries directly with the Local Authority.'}
-              style={shared.bodyText}
+              style={[shared.bodyText, { color: bodyColor }]}
             />
 
-            <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont }]}>Legal Costs</Text>
-            <RichText text={data.legalCosts} style={shared.bodyText} />
+            <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Legal Costs</Text>
+            <RichText text={data.legalCosts} style={[shared.bodyText, { color: bodyColor }]} />
 
             {data.epc ? (
               <>
-                <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont }]}>EPC</Text>
-                <RichText text={data.epc} style={shared.bodyText} />
+                <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>EPC</Text>
+                <RichText text={data.epc} style={[shared.bodyText, { color: bodyColor }]} />
               </>
             ) : null}
           </View>
 
           <View style={shared.col}>
-            <Text style={[shared.sectionLabel, { fontFamily: bodyFont }]}>Viewings</Text>
-            <Text style={shared.bodyText}>
+            <Text style={[shared.sectionLabel, { fontFamily: bodyFont, color: textColor }]}>Viewings</Text>
+            <Text style={[shared.bodyText, { color: bodyColor }]}>
               {data.agency.telephone ? (
                 <>
                   {'For viewings please call '}
@@ -439,32 +457,57 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
             {data.viewings.map((contact, i) => (
               <View style={[shared.contactItem, { borderLeftColor: accent }]} key={i}>
                 {contact.name ? (
-                  <Text style={shared.contactName}>{contact.name}</Text>
+                  <Text style={[shared.contactName, { color: textColor }]}>{contact.name}</Text>
                 ) : null}
                 {contact.email ? (
-                  <Text style={shared.contactEmail}>{contact.email}</Text>
+                  <Text style={[shared.contactEmail, { color: bodyColor }]}>{contact.email}</Text>
                 ) : null}
               </View>
             ))}
             {data.viewingsBlurb ? (
-              <RichText text={data.viewingsBlurb} style={shared.viewingsBlurb} />
+              <RichText text={data.viewingsBlurb} style={[shared.viewingsBlurb, { color: bodyColor }]} />
             ) : null}
           </View>
         </View>
 
+        {/* ── Gallery (optional) ── */}
+        {gallery.length > 0 && (() => {
+          const galleryH = gallery.length === 1 ? 200 : gallery.length === 2 ? 160 : 140;
+          return (
+            <View style={s.gallerySection}>
+              <View style={s.galleryStrip}>
+                {gallery.map((img) => (
+                  <Image
+                    key={img.id}
+                    src={img.url}
+                    style={[
+                      s.galleryImage,
+                      {
+                        height: galleryH,
+                        maxWidth: gallery.length === 1 ? '75%' : undefined,
+                        objectPosition: `${img.position?.x ?? 50}% ${img.position?.y ?? 50}%`,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          );
+        })()}
+
         {/* ── Map ── */}
         <View style={shared.mapSection}>
-          <Text style={[shared.mapLabel, { fontFamily: bodyFont }]}>Location</Text>
+          <Text style={[shared.mapLabel, { fontFamily: bodyFont, color: textColor }]}>Location</Text>
           {data.mapImageUrl ? (
-            <Image src={data.mapImageUrl} style={shared.mapImage} />
+            <Image src={data.mapImageUrl} style={[shared.mapImage, gallery.length > 0 ? { height: 200 } : {}]} />
           ) : (
-            <View style={shared.mapPlaceholder}>
+            <View style={[shared.mapPlaceholder, gallery.length > 0 ? { height: 200 } : {}]}>
               <Text style={shared.mapPlaceholderText}>Location Map</Text>
             </View>
           )}
         </View>
 
-        <Footer />
+        <Footer text={data.disclaimer} textColor={textColor} />
       </Page>
     </>
   );

@@ -120,20 +120,13 @@ export const shared = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-  },
-  disclaimer: {
     paddingHorizontal: 40,
     paddingVertical: 10,
-    fontSize: 5.5,
-    color: '#bbb',
+    backgroundColor: '#f5f5f5',
+  },
+  disclaimer: {
+    fontSize: 6.5,
+    color: '#666',
     lineHeight: 1.5,
   },
-  disclaimerBold: {
-    fontWeight: 700,
-    fontSize: 5.5,
-    color: '#aaa',
-  },
 });
-
-export const DISCLAIMER =
-  'Whilst every care is taken in the preparation of these particulars, the agents, any joint agents involved, and the vendor take no responsibility for any error, misstatement or omission in these details. Measurements are approximate and for guidance only. These particulars do not constitute an offer or contract and members of the Agents firm have no authority to make any representation or warranty in relation to the property.';

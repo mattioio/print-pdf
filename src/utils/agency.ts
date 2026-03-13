@@ -5,6 +5,7 @@ const STORAGE_KEY = 'print-pdf-agency';
 export interface AgencySettings {
   agency: AgencyDetails;
   accentColor: string;
+  textColor: string;
   titleFont: string;
   bodyFont: string;
   agents: ContactPerson[];
@@ -21,6 +22,7 @@ export const defaultAgencySettings: AgencySettings = {
     website: 'www.jenkinslaw.co.uk',
   },
   accentColor: '#f3b229',
+  textColor: '#1a1a1a',
   titleFont: 'Playfair Display',
   bodyFont: 'Montserrat',
   agents: [

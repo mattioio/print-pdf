@@ -1,1 +1,42 @@
 @import "tailwindcss";
+
+/* ── Zoom slider (iOS-style thick track, icons sit inside the track) ── */
+.zoom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+.zoom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  cursor: grab;
+}
+.zoom-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.zoom-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  cursor: grab;
+}
+.zoom-slider::-moz-range-thumb:active {
+  cursor: grabbing;
+}
+.zoom-slider::-moz-range-track {
+  height: 4px;
+  background: #d1d5db;
+  border-radius: 9999px;
+  border: none;
+}

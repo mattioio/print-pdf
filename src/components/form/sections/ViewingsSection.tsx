@@ -1,10 +1,23 @@
+import { useState, useEffect } from 'react';
 import { useBrochure } from '../../../context/BrochureContext';
-import { loadAgencySettings } from '../../../utils/agency';
+import { useAuth } from '../../../context/AuthContext';
+import { apiCompanyAgents } from '../../../lib/api';
 import { Section, SectionHeading, Label, TextArea } from '../primitives';
+import type { ContactPerson } from '../../../types/brochure';
 
 export default function ViewingsSection() {
   const { data, updateField } = useBrochure();
-  const agencySettings = loadAgencySettings();
+  const { organization } = useAuth();
+  const [agents, setAgents] = useState<ContactPerson[]>([]);
+
+  // Load agents from API
+  useEffect(() => {
+    const orgId = organization?.id;
+    if (!orgId) return;
+    apiCompanyAgents.list(orgId).then((rows) => {
+      setAgents(rows.map((a) => ({ name: a.name, email: a.email })));
+    }).catch(() => { /* ignore */ });
+  }, [organization?.id]);
 
   const toggleAgent = (agent: { name: string; email: string }) => {
     const exists = data.viewings.some(
@@ -33,9 +46,9 @@ export default function ViewingsSection() {
       <Section>
         <div>
           <Label>Contacts</Label>
-          {agencySettings.agents.length > 0 ? (
+          {agents.length > 0 ? (
             <div className="space-y-2">
-              {agencySettings.agents.map((agent, i) => (
+              {agents.map((agent, i) => (
                 <label
                   key={i}
                   className="flex items-center gap-3 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"

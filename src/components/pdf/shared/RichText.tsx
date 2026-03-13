@@ -53,7 +53,7 @@ function parseInline(text: string, baseStyle?: Style | Style[]): React.ReactNode
     }
 
     nodes.push(
-      <Text key={`b-${match.index}`} style={[baseStyle as Style, { fontWeight: 700, color: '#1a1a1a' }]}>
+      <Text key={`b-${match.index}`} style={[baseStyle as Style, { fontWeight: 700 }]}>
         {match[2]}
       </Text>
     );
