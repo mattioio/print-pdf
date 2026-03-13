@@ -1,6 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { randomBytes } = require('crypto');
-const { verifySession, isAdminEmail } = require('../../_lib/auth');
+const { verifySession, isAdminEmail, hashPassword } = require('../../_lib/auth');
 
 module.exports = async function handler(req, res) {
   try {
@@ -23,31 +22,57 @@ module.exports = async function handler(req, res) {
         ORDER BY m."createdAt"
       `;
 
-      const invitations = await sql`
-        SELECT id, code, email, created_at, used_at
-        FROM public.platform_invitations
-        WHERE organization_id = ${orgId}
-        ORDER BY created_at DESC
-      `;
-
-      return res.status(200).json({ members, invitations });
+      return res.status(200).json({ members });
     }
 
     if (req.method === 'POST') {
-      const { email } = req.body ?? {};
+      const { email, password } = req.body ?? {};
       if (!email?.trim()) {
         return res.status(400).json({ error: 'Email is required' });
       }
+      if (!password || password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+      }
 
-      const code = randomBytes(16).toString('hex');
+      const emailLower = email.trim().toLowerCase();
 
-      const [invite] = await sql`
-        INSERT INTO public.platform_invitations (code, organization_id, email, created_by)
-        VALUES (${code}, ${orgId}, ${email.trim().toLowerCase()}, ${session.userId})
-        RETURNING id, code, email, created_at
+      // Check if user already exists
+      const existing = await sql`
+        SELECT id FROM neon_auth.user WHERE email = ${emailLower} LIMIT 1
+      `;
+      if (existing.length > 0) {
+        return res.status(409).json({ error: 'A user with this email already exists' });
+      }
+
+      const now = new Date().toISOString();
+      const hashedPassword = hashPassword(password);
+
+      // Create user
+      const [user] = await sql`
+        INSERT INTO neon_auth.user (name, email, "emailVerified", "createdAt", "updatedAt")
+        VALUES (${emailLower}, ${emailLower}, false, ${now}, ${now})
+        RETURNING id
       `;
 
-      return res.status(201).json(invite);
+      // Create credential account
+      await sql`
+        INSERT INTO neon_auth.account ("accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+        VALUES (${user.id}, 'credential', ${user.id}, ${hashedPassword}, ${now}, ${now})
+      `;
+
+      // Add to organization
+      await sql`
+        INSERT INTO neon_auth.member (id, "organizationId", "userId", role, "createdAt")
+        VALUES (gen_random_uuid(), ${orgId}, ${user.id}, 'member', ${now})
+      `;
+
+      // Set must-change-password flag
+      await sql`
+        INSERT INTO public.user_flags (user_id, must_change_password)
+        VALUES (${user.id}, true)
+      `;
+
+      return res.status(201).json({ id: user.id, email: emailLower });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });

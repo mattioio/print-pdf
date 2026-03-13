@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { adminApi, type Company, type Member, type Invitation } from '../lib/adminApi';
+import { adminApi, type Company, type Member } from '../lib/adminApi';
 import { templates } from '../components/pdf/templates';
 
 interface AdminProps {
@@ -197,18 +197,17 @@ function CompanyCard({
 
 function CompanyDetail({ orgId }: { orgId: string }) {
   const [members, setMembers] = useState<Member[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviting, setInviting] = useState(false);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState('');
+  const [userPassword, setUserPassword] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const [error, setError] = useState('');
 
   const loadData = useCallback(async () => {
     try {
       const data = await adminApi.getCompanyMembers(orgId);
       setMembers(data.members);
-      setInvitations(data.invitations);
     } catch (err) {
       console.error('Failed to load members:', err);
     } finally {
@@ -218,32 +217,22 @@ function CompanyDetail({ orgId }: { orgId: string }) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const handleInvite = async (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    if (!userEmail.trim() || !userPassword) return;
     setError('');
-    setInviting(true);
+    setCreating(true);
     try {
-      const invite = await adminApi.inviteUser(orgId, inviteEmail.trim());
-      setInviteEmail('');
-      setInvitations((prev) => [invite, ...prev]);
-      // Copy invite link to clipboard
-      const link = `${window.location.origin}?invite=${invite.code}`;
-      await navigator.clipboard.writeText(link);
-      setCopiedCode(invite.code);
-      setTimeout(() => setCopiedCode(null), 3000);
+      await adminApi.createUser(orgId, userEmail.trim(), userPassword);
+      setCreated({ email: userEmail.trim(), password: userPassword });
+      setUserEmail('');
+      setUserPassword('');
+      loadData(); // Refresh members list
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create invite');
+      setError(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
-      setInviting(false);
+      setCreating(false);
     }
-  };
-
-  const copyLink = async (code: string) => {
-    const link = `${window.location.origin}?invite=${code}`;
-    await navigator.clipboard.writeText(link);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 3000);
   };
 
   if (loading) {
@@ -281,54 +270,49 @@ function CompanyDetail({ orgId }: { orgId: string }) {
         )}
       </div>
 
-      {/* Invite */}
+      {/* Create User */}
       <div>
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Invite User</h4>
-        <form onSubmit={handleInvite} className="flex gap-2">
-          <input
-            type="email"
-            value={inviteEmail}
-            onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="user@company.com"
-            required
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-          />
-          <button
-            type="submit"
-            disabled={inviting || !inviteEmail.trim()}
-            className="px-4 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors whitespace-nowrap"
-          >
-            {inviting ? 'Sending...' : 'Create Invite'}
-          </button>
-        </form>
-        {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
-      </div>
-
-      {/* Pending invitations */}
-      {invitations.length > 0 && (
-        <div>
-          <h4 className="text-xs font-medium text-gray-400 mb-2">Invitations</h4>
-          <div className="space-y-1.5">
-            {invitations.map((inv) => (
-              <div key={inv.id} className="flex items-center gap-3 text-sm">
-                <span className={`flex-1 ${inv.used_at ? 'text-gray-300 line-through' : 'text-gray-600'}`}>
-                  {inv.email}
-                </span>
-                {inv.used_at ? (
-                  <span className="text-[10px] text-green-500 uppercase font-medium">Accepted</span>
-                ) : (
-                  <button
-                    className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase"
-                    onClick={() => copyLink(inv.code)}
-                  >
-                    {copiedCode === inv.code ? 'Copied!' : 'Copy Link'}
-                  </button>
-                )}
-              </div>
-            ))}
+        <h4 className="text-xs font-medium text-gray-400 mb-2">Add User</h4>
+        <form onSubmit={handleCreateUser} className="space-y-2">
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={userEmail}
+              onChange={(e) => { setUserEmail(e.target.value); setCreated(null); }}
+              placeholder="user@company.com"
+              required
+              className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            />
+            <input
+              type="text"
+              value={userPassword}
+              onChange={(e) => { setUserPassword(e.target.value); setCreated(null); }}
+              placeholder="Temporary password"
+              required
+              minLength={8}
+              className="w-44 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            />
+            <button
+              type="submit"
+              disabled={creating || !userEmail.trim() || userPassword.length < 8}
+              className="px-4 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {creating ? 'Creating...' : 'Create User'}
+            </button>
           </div>
-        </div>
-      )}
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          {created && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-xs font-medium text-green-800 mb-1">User created! Share these credentials:</p>
+              <p className="text-xs text-green-700 font-mono">
+                Email: {created.email}<br />
+                Password: {created.password}
+              </p>
+              <p className="text-[10px] text-green-600 mt-1">They will be asked to change their password on first login.</p>
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   );
 }
