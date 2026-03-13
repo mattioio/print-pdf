@@ -5,12 +5,15 @@ import Dashboard from './pages/Dashboard';
 import Editor from './pages/Editor';
 import Login from './pages/Login';
 import JoinCompany from './pages/JoinCompany';
+import InviteSignup from './pages/InviteSignup';
+import Admin from './pages/Admin';
 import Settings from './pages/Settings';
 import type { BrochureData } from './types/brochure';
 
 type Route =
   | { page: 'dashboard' }
-  | { page: 'editor'; data: BrochureData };
+  | { page: 'editor'; data: BrochureData }
+  | { page: 'admin' };
 
 function AppRoutes() {
   const { user, organization, loading } = useAuth();
@@ -38,6 +41,18 @@ function AppRoutes() {
     );
   }
 
+  // Check for invite code in URL
+  const params = new URLSearchParams(window.location.search);
+  const inviteCode = params.get('invite');
+  if (inviteCode) {
+    return (
+      <InviteSignup
+        code={inviteCode}
+        onDone={() => window.location.replace('/')}
+      />
+    );
+  }
+
   // Not authenticated
   if (!user) {
     return <Login />;
@@ -51,7 +66,9 @@ function AppRoutes() {
   // Main app
   return (
     <>
-      {route.page === 'editor' ? (
+      {route.page === 'admin' ? (
+        <Admin onBack={handleBack} />
+      ) : route.page === 'editor' ? (
         <BrochureProvider initial={route.data} key={route.data.id}>
           <Editor
             onBack={handleBack}
@@ -63,6 +80,7 @@ function AppRoutes() {
         <Dashboard
           onEdit={handleEdit}
           onSettings={() => setSettingsOpen(true)}
+          onAdmin={() => setRoute({ page: 'admin' })}
         />
       )}
 

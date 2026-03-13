@@ -2,11 +2,9 @@ import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail } = useAuth();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const { signInWithGoogle, signInWithEmail } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -15,11 +13,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      if (mode === 'signup') {
-        await signUpWithEmail(email, password, name);
-      } else {
-        await signInWithEmail(email, password);
-      }
+      await signInWithEmail(email, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -34,7 +28,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Brochure Builder</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Create professional property brochures
+            Sign in to your account
           </p>
         </div>
 
@@ -79,16 +73,6 @@ export default function Login() {
 
           {/* Email form */}
           <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === 'signup' && (
-              <input
-                type="text"
-                placeholder="Full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-              />
-            )}
             <input
               type="email"
               placeholder="Email address"
@@ -116,36 +100,9 @@ export default function Login() {
               disabled={loading}
               className="w-full py-2.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Please wait...' : mode === 'signup' ? 'Create account' : 'Sign in'}
+              {loading ? 'Please wait...' : 'Sign in'}
             </button>
           </form>
-
-          {/* Toggle mode */}
-          <p className="text-center text-xs text-gray-500">
-            {mode === 'signin' ? (
-              <>
-                Don&apos;t have an account?{' '}
-                <button
-                  type="button"
-                  className="text-amber-600 font-medium hover:underline"
-                  onClick={() => { setMode('signup'); setError(''); }}
-                >
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  className="text-amber-600 font-medium hover:underline"
-                  onClick={() => { setMode('signin'); setError(''); }}
-                >
-                  Sign in
-                </button>
-              </>
-            )}
-          </p>
         </div>
       </div>
     </div>

@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useBrochure } from '../../context/BrochureContext';
-import PropertySection from './sections/PropertySection';
-import AccommodationSection from './sections/AccommodationSection';
-import UseSection from './sections/UseSection';
-import Page2Section from './sections/Page2Section';
-import ViewingsSection from './sections/ViewingsSection';
-import FooterSection from './sections/FooterSection';
+import { templates } from '../pdf/templates';
 
 function formatSavedTime(date: Date | null): string {
   if (!date) return '';
@@ -19,7 +14,9 @@ function formatSavedTime(date: Date | null): string {
 }
 
 export default function FormPanel() {
-  const { undo, redo, canUndo, canRedo, lastSavedAt } = useBrochure();
+  const { data, undo, redo, canUndo, canRedo, lastSavedAt } = useBrochure();
+  const template = templates[data.templateId] ?? templates.classic;
+  const FormSections = template.formComponent;
 
   // Tick the saved-time display every 10s so it stays fresh
   const [, tick] = useState(0);
@@ -69,12 +66,7 @@ export default function FormPanel() {
 
       {/* Form content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        <PropertySection />
-        <AccommodationSection />
-        <UseSection />
-        <Page2Section />
-        <ViewingsSection />
-        <FooterSection />
+        <FormSections />
         <div className="h-8" />
       </div>
     </div>

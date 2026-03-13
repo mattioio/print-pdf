@@ -70,5 +70,7 @@ export interface TemplateDefinition {
   id: string;
   name: string;
   description: string;
-  component: React.FC<{ data: BrochureData }>;
+  pdfComponent: React.FC<{ data: BrochureData }>;
+  formComponent: React.FC;
+  defaultData: Partial<BrochureData>;
 }

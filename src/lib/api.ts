@@ -122,6 +122,7 @@ export interface CompanySettingsRow {
   text_color: string;
   title_font: string;
   body_font: string;
+  template_id: string;
   updated_at: string;
 }
 
