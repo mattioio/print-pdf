@@ -3,6 +3,8 @@ import { adminApi, type Company } from '../lib/adminApi';
 import { useToast } from '../context/ToastContext';
 import CreateCompanyForm from '../components/admin/CreateCompanyForm';
 import CompanyCard from '../components/admin/CompanyCard';
+import CompanyDetail from '../components/admin/CompanyDetail';
+import SlidePanel from '../components/admin/SlidePanel';
 import TemplatesTab from '../components/admin/TemplatesTab';
 
 type AdminTab = 'companies' | 'templates';
@@ -16,7 +18,7 @@ export default function Admin({ onBack }: AdminProps) {
   const [tab, setTab] = useState<AdminTab>('companies');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -31,6 +33,8 @@ export default function Admin({ onBack }: AdminProps) {
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
+
+  const selectedCompany = companies.find((c) => c.id === selectedCompanyId) ?? null;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -91,18 +95,31 @@ export default function Admin({ onBack }: AdminProps) {
                     <CompanyCard
                       key={c.id}
                       company={c}
-                      expanded={expandedOrg === c.id}
-                      onToggle={() => setExpandedOrg(expandedOrg === c.id ? null : c.id)}
-                      onAgencyNameChange={(name) =>
-                        setCompanies((prev) =>
-                          prev.map((co) => co.id === c.id ? { ...co, agency_name: name } : co),
-                        )
-                      }
+                      onSelect={() => setSelectedCompanyId(c.id)}
                     />
                   ))}
                 </div>
               )}
             </section>
+
+            {/* Company detail panel */}
+            <SlidePanel
+              open={!!selectedCompany}
+              onClose={() => setSelectedCompanyId(null)}
+              title={selectedCompany?.agency_name || selectedCompany?.name || 'Company'}
+            >
+              {selectedCompany && (
+                <CompanyDetail
+                  key={selectedCompany.id}
+                  orgId={selectedCompany.id}
+                  onAgencyNameChange={(name) =>
+                    setCompanies((prev) =>
+                      prev.map((co) => co.id === selectedCompany.id ? { ...co, agency_name: name } : co),
+                    )
+                  }
+                />
+              )}
+            </SlidePanel>
           </>
         ) : (
           <TemplatesTab />

@@ -81,7 +81,7 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
   const pendingInvites = invitations.filter((inv) => !inv.used_at);
 
   return (
-    <div className="px-5 pb-4 border-t border-gray-100 pt-3 space-y-3">
+    <div className="space-y-4">
       {/* Tab switcher */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
         {(['people', 'templates', 'settings'] as const).map((t) => (

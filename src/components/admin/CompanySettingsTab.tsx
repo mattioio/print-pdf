@@ -212,43 +212,72 @@ export default function CompanySettingsTab({ orgId, initialSettings, initialAgen
 
       {/* Agents */}
       <div className="border-t border-gray-100 pt-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-1">
           <label className="text-xs font-medium text-gray-500">Agents</label>
-          <button
-            className="text-[10px] text-amber-600 hover:text-amber-700 font-medium"
-            onClick={addAgent}
-          >
-            + Add Agent
-          </button>
+          <span className="text-[10px] text-gray-400">{agents.length} {agents.length === 1 ? 'agent' : 'agents'}</span>
         </div>
+        <p className="text-[10px] text-gray-400 mb-3">Team members who appear on documents.</p>
         <div className="space-y-2">
           {agents.map((agent, i) => (
-            <div key={i} className="flex gap-2 items-center">
-              <input
-                className={inputClass + ' !w-auto flex-1'}
-                value={agent.name}
-                onChange={(e) => updateAgent(i, 'name', e.target.value)}
-                placeholder="Name"
-              />
-              <input
-                className={inputClass + ' !w-auto flex-1'}
-                value={agent.email}
-                onChange={(e) => updateAgent(i, 'email', e.target.value)}
-                placeholder="Email"
-              />
-              <button
-                className="text-gray-300 hover:text-red-500 text-sm transition-colors px-1"
-                onClick={() => removeAgent(i)}
-                title="Remove agent"
-              >
-                x
-              </button>
+            <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 group hover:border-gray-300 transition-colors">
+              <div className="flex items-start gap-3">
+                {/* Avatar */}
+                <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-[10px] font-semibold shrink-0 mt-0.5">
+                  {agent.name ? agent.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <input
+                    className={inputClass}
+                    value={agent.name}
+                    onChange={(e) => updateAgent(i, 'name', e.target.value)}
+                    placeholder="Full name"
+                  />
+                  <div className="flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 shrink-0">
+                      <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" />
+                      <path d="M1.5 5l6.5 4 6.5-4" />
+                    </svg>
+                    <input
+                      className={inputClass}
+                      value={agent.email}
+                      onChange={(e) => updateAgent(i, 'email', e.target.value)}
+                      placeholder="email@company.com"
+                      type="email"
+                    />
+                  </div>
+                </div>
+                <button
+                  className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  onClick={() => removeAgent(i)}
+                  title="Remove agent"
+                >
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
+                    <path d="M6.5 7v4M9.5 7v4" />
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
           {agents.length === 0 && (
-            <p className="text-xs text-gray-400 py-2">No agents yet.</p>
+            <div className="border-2 border-dashed border-gray-200 rounded-lg py-4 text-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 mx-auto mb-1.5">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M5 20c0-3.87 3.13-7 7-7s7 3.13 7 7" />
+              </svg>
+              <p className="text-xs text-gray-400">No agents yet</p>
+            </div>
           )}
         </div>
+        <button
+          className="mt-2 w-full py-1.5 border border-dashed border-gray-300 rounded-lg text-xs text-gray-400 hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50/50 transition-colors flex items-center justify-center gap-1.5"
+          onClick={addAgent}
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <path d="M8 3v10M3 8h10" />
+          </svg>
+          Add agent
+        </button>
       </div>
 
       {/* Branding */}
