@@ -217,6 +217,15 @@ export async function fetchUserFlags(): Promise<{ mustChangePassword: boolean }>
   return res.json();
 }
 
+export async function fetchOrgTemplates(): Promise<CompanyTemplate[]> {
+  const token = await getToken();
+  const res = await fetch('/api/org/templates', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   const token = await getToken();
   const res = await fetch('/api/me/change-password', {
