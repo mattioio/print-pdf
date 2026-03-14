@@ -7,7 +7,7 @@ import { StyleSheet } from '@react-pdf/renderer';
 export const shared = StyleSheet.create({
   // ── Layout ──
   topBar: {
-    height: 10,
+    height: 5,
   },
   col: {
     flex: 1,
