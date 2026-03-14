@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { adminApi, type Template } from '../../lib/adminApi';
-import ActionButton from '../ActionButton';
 import SlidePanel from './SlidePanel';
 
 export default function TemplatesTab() {
@@ -150,10 +149,10 @@ export default function TemplatesTab() {
               return (
                 <div
                   key={tpl.id}
-                  className="bg-white rounded-xl border border-gray-200 px-5 py-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group"
+                  className="bg-white rounded-xl border border-gray-200 px-4 py-3 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group"
                   onClick={() => setSelectedId(tpl.id)}
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-semibold text-gray-900 truncate">
@@ -174,62 +173,14 @@ export default function TemplatesTab() {
                       {tpl.description && (
                         <p className="text-xs text-gray-400 mt-0.5 truncate">{tpl.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400">
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M4 2v12l4-3 4 3V2H4z" />
                           </svg>
                           {tpl.usage_count} {tpl.usage_count === 1 ? 'company' : 'companies'}
                         </span>
                       </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2 shrink-0">
-                      <ActionButton
-                        label={isPublished ? 'Unpublish' : 'Publish'}
-                        hoverColor={isPublished ? 'hover:bg-amber-500' : 'hover:bg-green-600'}
-                        onClick={(e) => { e.stopPropagation(); handleToggleStatus(tpl); }}
-                        title={isPublished ? 'Revert to draft — users won\'t see this template' : 'Publish — users can see this template'}
-                        icon={
-                          isPublished ? (
-                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
-                              <circle cx="8" cy="8" r="2" />
-                              <path d="M2 14L14 2" />
-                            </svg>
-                          ) : (
-                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
-                              <circle cx="8" cy="8" r="2" />
-                            </svg>
-                          )
-                        }
-                      />
-                      <ActionButton
-                        label="Duplicate"
-                        onClick={(e) => { e.stopPropagation(); handleDuplicate(tpl); }}
-                        title="Duplicate template"
-                        icon={
-                          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="5" y="5" width="9" height="9" rx="1.5" />
-                            <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" />
-                          </svg>
-                        }
-                      />
-                      <ActionButton
-                        label="Delete"
-                        hoverColor="hover:bg-red-600"
-                        onClick={(e) => { e.stopPropagation(); handleDelete(tpl); }}
-                        disabled={tpl.usage_count > 0}
-                        title={tpl.usage_count > 0 ? `Assigned to ${tpl.usage_count} ${tpl.usage_count === 1 ? 'company' : 'companies'}` : 'Delete template'}
-                        icon={
-                          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
-                            <path d="M6.5 7v4M9.5 7v4" />
-                          </svg>
-                        }
-                      />
                     </div>
 
                     {/* Chevron */}
@@ -258,6 +209,9 @@ export default function TemplatesTab() {
             key={selectedTpl.id}
             template={selectedTpl}
             onUpdate={handleFieldUpdate}
+            onToggleStatus={() => handleToggleStatus(selectedTpl)}
+            onDuplicate={() => handleDuplicate(selectedTpl)}
+            onDelete={() => handleDelete(selectedTpl)}
           />
         )}
       </SlidePanel>
@@ -270,9 +224,15 @@ export default function TemplatesTab() {
 function TemplateEditForm({
   template,
   onUpdate,
+  onToggleStatus,
+  onDuplicate,
+  onDelete,
 }: {
   template: Template;
   onUpdate: (id: string, updates: Partial<Template>) => void;
+  onToggleStatus: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
 }) {
   const { toast } = useToast();
   const [name, setName] = useState(template.name);
@@ -307,6 +267,8 @@ function TemplateEditForm({
 
   const inputClass =
     'w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none';
+
+  const isPublished = template.status === 'published';
 
   return (
     <div className="space-y-5">
@@ -346,9 +308,60 @@ function TemplateEditForm({
       <div className="border-t border-gray-100 pt-4">
         <label className="block text-xs font-medium text-gray-500 mb-2">Info</label>
         <div className="space-y-1.5 text-xs text-gray-400">
-          <p>Status: <span className={template.status === 'published' ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>{template.status === 'published' ? 'Published' : 'Draft'}</span></p>
+          <p>Status: <span className={isPublished ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>{isPublished ? 'Published' : 'Draft'}</span></p>
           <p>Used by {template.usage_count} {template.usage_count === 1 ? 'company' : 'companies'}</p>
           <p className="font-mono text-[10px] text-gray-300">ID: {template.id}</p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="border-t border-gray-100 pt-4">
+        <label className="block text-xs font-medium text-gray-500 mb-2">Actions</label>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition-colors ${
+              isPublished
+                ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                : 'text-green-700 bg-green-50 border-green-200 hover:bg-green-100'
+            }`}
+            onClick={onToggleStatus}
+          >
+            {isPublished ? (
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
+                <circle cx="8" cy="8" r="2" />
+                <path d="M2 14L14 2" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
+                <circle cx="8" cy="8" r="2" />
+              </svg>
+            )}
+            {isPublished ? 'Unpublish' : 'Publish'}
+          </button>
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+            onClick={onDuplicate}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="5" y="5" width="9" height="9" rx="1.5" />
+              <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" />
+            </svg>
+            Duplicate
+          </button>
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-md hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gray-50 disabled:hover:text-gray-500 disabled:hover:border-gray-200"
+            onClick={onDelete}
+            disabled={template.usage_count > 0}
+            title={template.usage_count > 0 ? `Assigned to ${template.usage_count} ${template.usage_count === 1 ? 'company' : 'companies'}` : 'Delete template'}
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
+              <path d="M6.5 7v4M9.5 7v4" />
+            </svg>
+            Delete
+          </button>
         </div>
       </div>
 
