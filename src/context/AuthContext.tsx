@@ -67,6 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         image: data.user.image,
       };
 
+      // Check if user must change password
+      let mustChangePassword = false;
+      try {
+        const flags = await fetchUserFlags();
+        mustChangePassword = flags.mustChangePassword;
+      } catch {
+        // Flags check failed — assume no change needed
+      }
+
       // Try to load active organization
       let org: Organization | null = null;
       let allOrgs: Organization[] = [];
@@ -102,15 +111,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // No orgs yet — that's fine
       }
 
-      // Check if user must change password
-      let mustChangePassword = false;
-      try {
-        const flags = await fetchUserFlags();
-        mustChangePassword = flags.mustChangePassword;
-      } catch {
-        // Flags check failed — not critical
-      }
-
       setState({ user, organization: org, organizations: allOrgs, mustChangePassword, loading: false });
     } catch {
       setState({ user: null, organization: null, organizations: [], mustChangePassword: false, loading: false });
@@ -124,7 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const result = await authClient.signIn.email({ email, password });
-    if (result.error) throw new Error(result.error.message);
+    if (result.error) throw new Error(result.error.message ?? 'Sign in failed');
+    // Verify the session was actually established (catches Safari cookie issues)
+    const check = await authClient.getSession();
+    if (!check.data?.user) {
+      throw new Error('Sign in succeeded but session was not saved. Try clearing cookies and retrying.');
+    }
     await refreshSession();
   }, [refreshSession]);
 

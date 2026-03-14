@@ -18,12 +18,18 @@ export default function ChangePassword({ onDone }: ChangePasswordProps) {
     e.preventDefault();
     setError('');
 
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters');
       return;
     }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
+
+    if (newPassword === currentPassword) {
+      setError('New password must be different from current password');
       return;
     }
 

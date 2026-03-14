@@ -107,6 +107,21 @@ export async function validateInvite(code: string): Promise<{ email: string; nam
   return res.json();
 }
 
+export async function acceptInvite(code: string): Promise<void> {
+  const token = await getToken();
+  const res = await fetch(`/api/invite/${code}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Failed to accept invite' }));
+    throw new Error(body.error || 'Failed to accept invite');
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  User self-service (authenticated)                                  */
 /* ------------------------------------------------------------------ */
@@ -133,20 +148,5 @@ export async function changePassword(currentPassword: string, newPassword: strin
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Failed to change password' }));
     throw new Error(body.error || 'Failed to change password');
-  }
-}
-
-export async function acceptInvite(code: string): Promise<void> {
-  const token = await getToken();
-  const res = await fetch(`/api/invite/${code}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: 'Failed to accept invite' }));
-    throw new Error(body.error || 'Failed to accept invite');
   }
 }

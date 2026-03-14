@@ -61,7 +61,7 @@ function AppRoutes() {
 
   // Must change password (admin-reset flow)
   if (mustChangePassword) {
-    return <ChangePassword onDone={refreshSession} />;
+    return <ChangePassword onDone={() => refreshSession()} />;
   }
 
   // No organization
