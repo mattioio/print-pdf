@@ -20,33 +20,21 @@ export default withAdmin(async (req, res, _session, sql) => {
   }
 
   if (req.method === 'POST') {
-    const { organization_id, template_id, display_name, sort_order = 0 } = req.body ?? {};
-    if (!organization_id || !template_id || !display_name?.trim()) {
-      return res.status(400).json({ error: 'organization_id, template_id, display_name required' });
+    const { organization_id, template_id, sort_order = 0 } = req.body ?? {};
+    if (!organization_id || !template_id) {
+      return res.status(400).json({ error: 'organization_id and template_id required' });
     }
+
+    // Get template name to use as display_name
+    const [tpl] = await sql`SELECT name FROM public.templates WHERE id = ${template_id}`;
+    if (!tpl) return res.status(400).json({ error: 'Template not found' });
 
     const [row] = await sql`
       INSERT INTO public.company_templates (organization_id, template_id, display_name, sort_order)
-      VALUES (${organization_id}, ${template_id}, ${display_name.trim()}, ${sort_order})
+      VALUES (${organization_id}, ${template_id}, ${tpl.name}, ${sort_order})
       RETURNING *
     `;
     return res.status(201).json(row);
-  }
-
-  if (req.method === 'PATCH') {
-    const { id, display_name } = req.body ?? {};
-    if (!id || !display_name?.trim()) {
-      return res.status(400).json({ error: 'id and display_name required' });
-    }
-
-    const [row] = await sql`
-      UPDATE public.company_templates
-      SET display_name = ${display_name.trim()}
-      WHERE id = ${id}
-      RETURNING *
-    `;
-    if (!row) return res.status(404).json({ error: 'Not found' });
-    return res.status(200).json(row);
   }
 
   if (req.method === 'DELETE') {

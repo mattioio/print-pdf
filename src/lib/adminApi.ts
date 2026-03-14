@@ -144,16 +144,10 @@ export const adminApi = {
   listCompanyTemplates: (orgId: string) =>
     adminFetch<CompanyTemplate[]>(`/api/admin/company-templates?orgId=${orgId}`),
 
-  assignCompanyTemplate: (data: { organization_id: string; template_id: string; display_name: string; sort_order: number }) =>
+  assignCompanyTemplate: (data: { organization_id: string; template_id: string; sort_order: number }) =>
     adminFetch<CompanyTemplate>('/api/admin/company-templates', {
       method: 'POST',
       body: JSON.stringify(data),
-    }),
-
-  updateCompanyTemplate: (id: string, display_name: string) =>
-    adminFetch<CompanyTemplate>('/api/admin/company-templates', {
-      method: 'PATCH',
-      body: JSON.stringify({ id, display_name }),
     }),
 
   removeCompanyTemplate: (id: string) =>
