@@ -191,6 +191,43 @@ export const apiCompanyAgents = {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Company templates (multi-template per company)                     */
+/* ------------------------------------------------------------------ */
+
+export interface CompanyTemplateRow {
+  id: string;
+  organization_id: string;
+  template_id: string;
+  display_name: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export const apiCompanyTemplates = {
+  list: (orgId: string) =>
+    apiFetch<CompanyTemplateRow[]>(
+      `/company_templates?organization_id=eq.${orgId}&order=sort_order`,
+    ),
+
+  create: (data: Omit<CompanyTemplateRow, 'id' | 'created_at'>) =>
+    apiFetch<CompanyTemplateRow[]>('/company_templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { Prefer: 'return=representation' },
+    }).then((r) => r[0]),
+
+  update: (id: string, data: Partial<CompanyTemplateRow>) =>
+    apiFetch<CompanyTemplateRow[]>(`/company_templates?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+      headers: { Prefer: 'return=representation' },
+    }).then((r) => r[0]),
+
+  delete: (id: string) =>
+    apiFetch(`/company_templates?id=eq.${id}`, { method: 'DELETE' }),
+};
+
+/* ------------------------------------------------------------------ */
 /*  Image upload                                                      */
 /* ------------------------------------------------------------------ */
 

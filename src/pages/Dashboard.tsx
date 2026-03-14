@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiBrochures, apiCompanySettings, apiCompanyAgents } from '../lib/api';
+import { apiBrochures, apiCompanySettings, apiCompanyAgents, apiCompanyTemplates, type CompanyTemplateRow } from '../lib/api';
 import { rowToBrochure, settingsToClient } from '../lib/convert';
 import { createDefaultBrochureForOrg } from '../utils/defaults';
+import { templates } from '../components/pdf/templates';
 import { isAdmin } from '../lib/admin';
 import UserMenu from '../components/UserMenu';
 import AdminBar from '../components/AdminBar';
@@ -22,6 +23,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
   const [companyName, setCompanyName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [templatePicker, setTemplatePicker] = useState<CompanyTemplateRow[] | null>(null);
 
   const orgId = organization?.id ?? '';
 
@@ -60,16 +62,16 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
     return () => { cancelled = true; };
   }, [reload, orgId, organization?.name]);
 
-  const handleNew = async () => {
+  /** Create a brochure with a specific template */
+  const createBrochure = async (templateId: string) => {
     if (!orgId || !user) return;
     try {
-      // Get company settings + agents for defaults
       const [settings, agents] = await Promise.all([
         apiCompanySettings.get(orgId),
         apiCompanyAgents.list(orgId),
       ]);
       const clientSettings = settingsToClient(settings, agents);
-      const data = createDefaultBrochureForOrg(clientSettings, clientSettings.templateId);
+      const data = createDefaultBrochureForOrg(clientSettings, templateId);
       const row = await apiBrochures.create({
         organization_id: orgId,
         created_by: user.id,
@@ -106,6 +108,25 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       if (row) {
         const brochure = rowToBrochure(row, settings, agents);
         onEdit(brochure);
+      }
+    } catch (err) {
+      console.error('Failed to create brochure:', err);
+    }
+  };
+
+  const handleNew = async () => {
+    if (!orgId || !user) return;
+    try {
+      const companyTemplates = await apiCompanyTemplates.list(orgId);
+      if (companyTemplates.length === 0) {
+        // No templates assigned — fallback to classic
+        await createBrochure('classic');
+      } else if (companyTemplates.length === 1) {
+        // Single template — create immediately
+        await createBrochure(companyTemplates[0].template_id);
+      } else {
+        // Multiple templates — show picker
+        setTemplatePicker(companyTemplates);
       }
     } catch (err) {
       console.error('Failed to create brochure:', err);
@@ -308,6 +329,56 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
           )}
         </div>
       </main>
+
+      {/* Template picker modal */}
+      {templatePicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => setTemplatePicker(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-gray-900 mb-1">Choose a template</h3>
+            <p className="text-sm text-gray-500 mb-5">Select a template for your new brochure.</p>
+            <div className="flex flex-col gap-2">
+              {templatePicker.map((ct) => {
+                const tpl = templates[ct.template_id];
+                return (
+                  <button
+                    key={ct.id}
+                    className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-400 hover:bg-amber-50/50 transition-colors group"
+                    onClick={() => {
+                      setTemplatePicker(null);
+                      createBrochure(ct.template_id);
+                    }}
+                  >
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-amber-500">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                        <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-medium text-sm text-gray-900 truncate">{ct.display_name}</div>
+                      {tpl && (
+                        <div className="text-xs text-gray-400 truncate">{tpl.description}</div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              className="w-full mt-4 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+              onClick={() => setTemplatePicker(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
