@@ -33,11 +33,27 @@ function AppRoutes() {
   }, [organization?.id]);
 
   const handleEdit = useCallback((data: BrochureData) => {
+    history.pushState({ page: 'editor' }, '', '');
     setRoute({ page: 'editor', data });
+  }, []);
+
+  const handleAdmin = useCallback(() => {
+    history.pushState({ page: 'admin' }, '', '');
+    setRoute({ page: 'admin' });
   }, []);
 
   const handleBack = useCallback(() => {
     setRoute({ page: 'dashboard' });
+  }, []);
+
+  // Browser back button support
+  useEffect(() => {
+    const onPopState = () => {
+      setRoute({ page: 'dashboard' });
+      setSettingsOpen(false);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   // Loading state
@@ -96,7 +112,7 @@ function AppRoutes() {
         <Dashboard
           onEdit={handleEdit}
           onSettings={() => setSettingsOpen(true)}
-          onAdmin={() => setRoute({ page: 'admin' })}
+          onAdmin={handleAdmin}
         />
       )}
 

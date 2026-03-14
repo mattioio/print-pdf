@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { adminApi, type Company, type Member, type Invitation } from '../lib/adminApi';
+import { apiCompanyTemplates, type CompanyTemplateRow } from '../lib/api';
 import { templates } from '../components/pdf/templates';
 
 interface AdminProps {
@@ -85,7 +86,6 @@ export default function Admin({ onBack }: AdminProps) {
 
 function CreateCompanyForm({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState('');
-  const [templateId, setTemplateId] = useState('classic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -95,7 +95,7 @@ function CreateCompanyForm({ onCreated }: { onCreated: () => void }) {
     setError('');
     setLoading(true);
     try {
-      await adminApi.createCompany(name.trim(), templateId);
+      await adminApi.createCompany(name.trim());
       setName('');
       onCreated();
     } catch (err) {
@@ -104,8 +104,6 @@ function CreateCompanyForm({ onCreated }: { onCreated: () => void }) {
       setLoading(false);
     }
   };
-
-  const templateKeys = Object.keys(templates);
 
   return (
     <section>
@@ -122,18 +120,6 @@ function CreateCompanyForm({ onCreated }: { onCreated: () => void }) {
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
-          </div>
-          <div className="w-40">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Template</label>
-            <select
-              value={templateId}
-              onChange={(e) => setTemplateId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-            >
-              {templateKeys.map((k) => (
-                <option key={k} value={k}>{templates[k].name}</option>
-              ))}
-            </select>
           </div>
           <button
             type="submit"
@@ -171,7 +157,7 @@ function CompanyCard({
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-gray-900">{company.agency_name || company.name}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
-            {templates[company.template_id]?.name ?? company.template_id} template
+            {company.template_count} template{company.template_count !== 1 ? 's' : ''}
             {' \u00b7 '}
             {company.member_count} member{company.member_count !== 1 ? 's' : ''}
             {' \u00b7 '}
@@ -299,6 +285,9 @@ function CompanyDetail({ orgId }: { orgId: string }) {
           </div>
         )}
       </div>
+
+      {/* Templates */}
+      <TemplatesSection orgId={orgId} />
 
       {/* Invite */}
       <div>
@@ -597,6 +586,196 @@ function RemoveMemberModal({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Templates Section                                                  */
+/* ------------------------------------------------------------------ */
+
+function TemplatesSection({ orgId }: { orgId: string }) {
+  const [assigned, setAssigned] = useState<CompanyTemplateRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [addTemplateId, setAddTemplateId] = useState('');
+  const [addDisplayName, setAddDisplayName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  useEffect(() => {
+    apiCompanyTemplates.list(orgId)
+      .then(setAssigned)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [orgId]);
+
+  const availableTemplates = Object.entries(templates)
+    .filter(([key]) => !assigned.some((a) => a.template_id === key));
+
+  const handleAdd = async () => {
+    if (!addTemplateId || !addDisplayName.trim()) return;
+    setSaving(true);
+    try {
+      const row = await apiCompanyTemplates.create({
+        organization_id: orgId,
+        template_id: addTemplateId,
+        display_name: addDisplayName.trim(),
+        sort_order: assigned.length,
+      });
+      setAssigned((prev) => [...prev, row]);
+      setAdding(false);
+      setAddTemplateId('');
+      setAddDisplayName('');
+    } catch {
+      // silently fail
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDisplayName = async (row: CompanyTemplateRow) => {
+    if (!editName.trim() || editName.trim() === row.display_name) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      const updated = await apiCompanyTemplates.update(row.id, { display_name: editName.trim() });
+      setAssigned((prev) => prev.map((t) => (t.id === row.id ? updated : t)));
+    } catch {
+      // silently fail
+    }
+    setEditingId(null);
+  };
+
+  const handleRemove = async (id: string) => {
+    try {
+      await apiCompanyTemplates.delete(id);
+      setAssigned((prev) => prev.filter((t) => t.id !== id));
+    } catch {
+      // silently fail
+    }
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <h4 className="text-xs font-medium text-gray-400 mb-2">Templates</h4>
+        <div className="flex justify-center py-2">
+          <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h4 className="text-xs font-medium text-gray-400 mb-2">Templates</h4>
+
+      {assigned.length === 0 && !adding ? (
+        <p className="text-xs text-gray-400 mb-2">No templates assigned.</p>
+      ) : (
+        <div className="space-y-1.5 mb-2">
+          {assigned.map((t) => (
+            <div key={t.id} className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">
+                  {templates[t.template_id]?.name ?? t.template_id}
+                </p>
+                {editingId === t.id ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    onBlur={() => handleSaveDisplayName(t)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveDisplayName(t);
+                      if (e.key === 'Escape') setEditingId(null);
+                    }}
+                    autoFocus
+                    className="w-full px-1.5 py-0.5 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Users see: <span className="text-gray-600">{t.display_name}</span>
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  className="text-[10px] text-gray-400 hover:text-gray-600 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-gray-100 transition-colors"
+                  onClick={() => {
+                    setEditingId(t.id);
+                    setEditName(t.display_name);
+                  }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
+                  onClick={() => handleRemove(t.id)}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {adding ? (
+        <div className="flex gap-2 items-end">
+          <div className="w-36">
+            <label className="block text-[10px] font-medium text-gray-400 mb-0.5">Template</label>
+            <select
+              value={addTemplateId}
+              onChange={(e) => {
+                setAddTemplateId(e.target.value);
+                const tpl = templates[e.target.value];
+                if (tpl) setAddDisplayName(tpl.name);
+              }}
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
+            >
+              <option value="">Select...</option>
+              {availableTemplates.map(([key, tpl]) => (
+                <option key={key} value={key}>{tpl.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-1">
+            <label className="block text-[10px] font-medium text-gray-400 mb-0.5">Display Name (what users see)</label>
+            <input
+              type="text"
+              value={addDisplayName}
+              onChange={(e) => setAddDisplayName(e.target.value)}
+              placeholder="e.g. Brochure"
+              className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={handleAdd}
+            disabled={saving || !addTemplateId || !addDisplayName.trim()}
+            className="px-3 py-1.5 bg-amber-500 text-white text-xs font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            {saving ? 'Adding...' : 'Add'}
+          </button>
+          <button
+            onClick={() => { setAdding(false); setAddTemplateId(''); setAddDisplayName(''); }}
+            className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          disabled={availableTemplates.length === 0}
+          className="text-xs text-amber-600 hover:text-amber-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          + Add Template
+        </button>
+      )}
     </div>
   );
 }

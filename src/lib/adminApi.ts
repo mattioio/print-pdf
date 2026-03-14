@@ -40,9 +40,9 @@ export interface Company {
   name: string;
   slug: string;
   createdAt: string;
-  template_id: string;
   agency_name: string | null;
   member_count: number;
+  template_count: number;
 }
 
 export interface Member {
@@ -71,10 +71,10 @@ export const adminApi = {
   listCompanies: () =>
     adminFetch<Company[]>('/api/admin/companies'),
 
-  createCompany: (name: string, templateId: string) =>
+  createCompany: (name: string) =>
     adminFetch<Company>('/api/admin/companies', {
       method: 'POST',
-      body: JSON.stringify({ name, templateId }),
+      body: JSON.stringify({ name }),
     }),
 
   getCompanyMembers: (orgId: string) =>

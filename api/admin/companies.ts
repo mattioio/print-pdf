@@ -19,20 +19,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const rows = await sql`
         SELECT
           o.id, o.name, o.slug, o."createdAt",
-          COALESCE(cs.template_id, 'classic') as template_id,
           cs.agency_name,
-          COUNT(DISTINCT m.id)::int as member_count
+          COUNT(DISTINCT m.id)::int as member_count,
+          COUNT(DISTINCT ct.id)::int as template_count
         FROM neon_auth.organization o
         LEFT JOIN public.company_settings cs ON cs.organization_id = o.id
         LEFT JOIN neon_auth.member m ON m."organizationId" = o.id
-        GROUP BY o.id, o.name, o.slug, o."createdAt", cs.template_id, cs.agency_name
+        LEFT JOIN public.company_templates ct ON ct.organization_id = o.id
+        GROUP BY o.id, o.name, o.slug, o."createdAt", cs.agency_name
         ORDER BY o."createdAt" DESC
       `;
       return res.status(200).json(rows);
     }
 
     if (req.method === 'POST') {
-      const { name, templateId = 'classic' } = req.body ?? {};
+      const { name } = req.body ?? {};
       if (!name?.trim()) {
         return res.status(400).json({ error: 'Company name is required' });
       }
@@ -53,13 +54,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         VALUES (gen_random_uuid(), ${org.id}, ${session.userId}, 'owner', ${now})
       `;
 
-      // Seed company_settings
+      // Seed company_settings with agency name
       await sql`
-        INSERT INTO public.company_settings (organization_id, agency_name, template_id, updated_at)
-        VALUES (${org.id}, ${name.trim()}, ${templateId}, ${now})
+        INSERT INTO public.company_settings (organization_id, agency_name, updated_at)
+        VALUES (${org.id}, ${name.trim()}, ${now})
         ON CONFLICT (organization_id) DO UPDATE SET
           agency_name = EXCLUDED.agency_name,
-          template_id = EXCLUDED.template_id,
           updated_at = EXCLUDED.updated_at
       `;
 
@@ -68,8 +68,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         name: org.name,
         slug: org.slug,
         createdAt: org.createdAt,
-        template_id: templateId,
+        agency_name: name.trim(),
         member_count: 1,
+        template_count: 0,
       });
     }
 
