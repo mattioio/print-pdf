@@ -172,7 +172,8 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                 <div key={tpl.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
                   <div className="flex items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      {/* Name */}
+                      {/* Name (display name users see) */}
+                      <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Display name</label>
                       {editingId === tpl.id && editField === 'name' ? (
                         <input
                           type="text"
@@ -200,6 +201,7 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                       )}
 
                       {/* Description */}
+                      <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mt-2 block">Description</label>
                       {editingId === tpl.id && editField === 'description' ? (
                         <input
                           type="text"
@@ -211,12 +213,12 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                             if (e.key === 'Escape') setEditingId(null);
                           }}
                           autoFocus
-                          className="w-full px-2 py-0.5 -ml-2 mt-1 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
                           placeholder="Add a description..."
                         />
                       ) : (
                         <p
-                          className="text-xs text-gray-400 mt-0.5 cursor-pointer hover:text-gray-600 transition-colors"
+                          className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
                           onClick={() => {
                             setEditingId(tpl.id);
                             setEditField('description');
