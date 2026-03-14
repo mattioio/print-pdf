@@ -139,10 +139,22 @@ export const adminApi = {
       body: JSON.stringify({ invitationId }),
     }),
 
+  deleteCompany: (orgId: string) =>
+    adminFetch<{ ok: boolean }>(`/api/admin/companies/${orgId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ deleteCompany: true }),
+    }),
+
   resetPassword: (userId: string, password: string) =>
     adminFetch<{ success: boolean }>('/api/admin/users/reset-password', {
       method: 'POST',
       body: JSON.stringify({ userId, password }),
+    }),
+
+  updateMemberName: (userId: string, name: string) =>
+    adminFetch<{ success: boolean }>(`/api/admin/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
     }),
 
   removeMember: (userId: string, organizationId: string) =>

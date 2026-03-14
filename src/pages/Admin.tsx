@@ -117,6 +117,10 @@ export default function Admin({ onBack }: AdminProps) {
                       prev.map((co) => co.id === selectedCompany.id ? { ...co, agency_name: name } : co),
                     )
                   }
+                  onDeleted={() => {
+                    setSelectedCompanyId(null);
+                    setCompanies((prev) => prev.filter((c) => c.id !== selectedCompany.id));
+                  }}
                 />
               )}
             </SlidePanel>
