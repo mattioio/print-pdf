@@ -57,6 +57,7 @@ export interface Invitation {
   id: string;
   code: string;
   email: string;
+  name: string | null;
   created_at: string;
   used_at: string | null;
 }
@@ -80,10 +81,16 @@ export const adminApi = {
       `/api/admin/companies/${orgId}`,
     ),
 
-  inviteUser: (orgId: string, email: string) =>
+  inviteUser: (orgId: string, email: string, name?: string) =>
     adminFetch<Invitation>(`/api/admin/companies/${orgId}`, {
       method: 'POST',
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, name }),
+    }),
+
+  resetPassword: (userId: string, password: string) =>
+    adminFetch<{ success: boolean }>('/api/admin/users/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ userId, password }),
     }),
 };
 
@@ -91,13 +98,42 @@ export const adminApi = {
 /*  Invite validation (public — no auth needed)                        */
 /* ------------------------------------------------------------------ */
 
-export async function validateInvite(code: string): Promise<{ email: string; orgName: string }> {
+export async function validateInvite(code: string): Promise<{ email: string; name: string | null; orgName: string }> {
   const res = await fetch(`/api/invite/${code}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Invalid invite' }));
     throw new Error(body.error || 'Invalid invite');
   }
   return res.json();
+}
+
+/* ------------------------------------------------------------------ */
+/*  User self-service (authenticated)                                  */
+/* ------------------------------------------------------------------ */
+
+export async function fetchUserFlags(): Promise<{ mustChangePassword: boolean }> {
+  const token = await getToken();
+  const res = await fetch('/api/me/flags', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return { mustChangePassword: false };
+  return res.json();
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const token = await getToken();
+  const res = await fetch('/api/me/change-password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Failed to change password' }));
+    throw new Error(body.error || 'Failed to change password');
+  }
 }
 
 export async function acceptInvite(code: string): Promise<void> {

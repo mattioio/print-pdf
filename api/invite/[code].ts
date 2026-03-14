@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'GET') {
     // Public — no auth required. Returns org name + pre-fill email.
     const rows = await sql`
-      SELECT pi.email, pi.used_at, o.name as org_name
+      SELECT pi.email, pi.name, pi.used_at, o.name as org_name
       FROM public.platform_invitations pi
       JOIN neon_auth.organization o ON o.id = pi.organization_id
       WHERE pi.code = ${code}
@@ -32,6 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({
       email: rows[0].email,
+      name: rows[0].name || null,
       orgName: rows[0].org_name,
     });
   }

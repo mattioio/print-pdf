@@ -4,6 +4,8 @@ import { apiBrochures, apiCompanySettings, apiCompanyAgents } from '../lib/api';
 import { rowToBrochure, settingsToClient } from '../lib/convert';
 import { createDefaultBrochureForOrg } from '../utils/defaults';
 import { isAdmin } from '../lib/admin';
+import UserMenu from '../components/UserMenu';
+import AdminBar from '../components/AdminBar';
 import type { BrochureData } from '../types/brochure';
 import type { BrochureRow } from '../lib/api';
 
@@ -145,19 +147,6 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
 
           <div className="flex-1" />
 
-          {/* Admin button (platform admins only) */}
-          {showAdmin && (
-            <button
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
-              onClick={onAdmin}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              Admin
-            </button>
-          )}
-
           {/* Settings */}
           <button
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors"
@@ -172,22 +161,13 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
 
           {/* User menu */}
           {user && (
-            <button
-              className="ml-2 flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-              onClick={signOut}
-              title="Sign out"
-            >
-              {user.image ? (
-                <img src={user.image} alt="" className="w-6 h-6 rounded-full" />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-medium">
-                  {user.name?.[0]?.toUpperCase() ?? '?'}
-                </div>
-              )}
-            </button>
+            <UserMenu user={user} onSignOut={signOut} />
           )}
         </div>
       </header>
+
+      {/* Admin bar (platform admins only) */}
+      {showAdmin && <AdminBar onAdmin={onAdmin} />}
 
       {/* Content */}
       <main className="flex-1">

@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import JoinCompany from './pages/JoinCompany';
 import InviteSignup from './pages/InviteSignup';
 import Admin from './pages/Admin';
+import ChangePassword from './pages/ChangePassword';
 import Settings from './pages/Settings';
 import type { BrochureData } from './types/brochure';
 
@@ -16,7 +17,7 @@ type Route =
   | { page: 'admin' };
 
 function AppRoutes() {
-  const { user, organization, loading } = useAuth();
+  const { user, organization, mustChangePassword, loading, refreshSession } = useAuth();
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsRevision, setSettingsRevision] = useState(0);
@@ -56,6 +57,11 @@ function AppRoutes() {
   // Not authenticated
   if (!user) {
     return <Login />;
+  }
+
+  // Must change password (admin-reset flow)
+  if (mustChangePassword) {
+    return <ChangePassword onDone={refreshSession} />;
   }
 
   // No organization
