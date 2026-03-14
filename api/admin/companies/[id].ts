@@ -2,9 +2,10 @@ import { randomBytes } from 'crypto';
 import { withAdmin } from '../../_lib/auth';
 
 /**
- * GET   /api/admin/companies/:id — list members, invitations, settings, agents
- * POST  /api/admin/companies/:id — create an invitation for a company
- * PATCH /api/admin/companies/:id — update company settings + agents
+ * GET    /api/admin/companies/:id — list members, invitations, settings, agents
+ * POST   /api/admin/companies/:id — create an invitation for a company
+ * PATCH  /api/admin/companies/:id — update company settings + agents
+ * DELETE /api/admin/companies/:id — revoke a pending invitation
  */
 export default withAdmin(async (req, res, session, sql) => {
   const orgId = req.query.id as string;
@@ -61,15 +62,58 @@ export default withAdmin(async (req, res, session, sql) => {
       return res.status(400).json({ error: 'Email is required' });
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Check if email is already a member of this org
+    const existingMembers = await sql`
+      SELECT u.id FROM neon_auth.user u
+      JOIN neon_auth.member m ON m."userId" = u.id
+      WHERE m."organizationId" = ${orgId}
+        AND LOWER(u.email) = ${normalizedEmail}
+      LIMIT 1
+    `;
+    if (existingMembers.length > 0) {
+      return res.status(409).json({ error: 'This person is already a member' });
+    }
+
+    // Check if there's already a pending invite for this email
+    const existingInvites = await sql`
+      SELECT id FROM public.platform_invitations
+      WHERE organization_id = ${orgId}
+        AND LOWER(email) = ${normalizedEmail}
+        AND used_at IS NULL
+      LIMIT 1
+    `;
+    if (existingInvites.length > 0) {
+      return res.status(409).json({ error: 'An invite has already been sent to this email' });
+    }
+
     const code = randomBytes(16).toString('hex');
 
     const [invite] = await sql`
       INSERT INTO public.platform_invitations (code, organization_id, email, name, created_by)
-      VALUES (${code}, ${orgId}, ${email.trim().toLowerCase()}, ${name?.trim() || null}, ${session.userId})
+      VALUES (${code}, ${orgId}, ${normalizedEmail}, ${name?.trim() || null}, ${session.userId})
       RETURNING id, code, email, name, created_at
     `;
 
     return res.status(201).json(invite);
+  }
+
+  if (req.method === 'DELETE') {
+    // Revoke a pending invitation
+    const { invitationId } = req.body ?? {};
+    if (!invitationId) {
+      return res.status(400).json({ error: 'invitationId is required' });
+    }
+
+    await sql`
+      DELETE FROM public.platform_invitations
+      WHERE id = ${invitationId}
+        AND organization_id = ${orgId}
+        AND used_at IS NULL
+    `;
+
+    return res.status(200).json({ ok: true });
   }
 
   if (req.method === 'PATCH') {

@@ -133,6 +133,12 @@ export const adminApi = {
       body: JSON.stringify({ email, name }),
     }),
 
+  deleteInvitation: (orgId: string, invitationId: string) =>
+    adminFetch<{ ok: boolean }>(`/api/admin/companies/${orgId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ invitationId }),
+    }),
+
   resetPassword: (userId: string, password: string) =>
     adminFetch<{ success: boolean }>('/api/admin/users/reset-password', {
       method: 'POST',
