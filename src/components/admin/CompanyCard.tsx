@@ -35,7 +35,7 @@ export default function CompanyCard({
                 <circle cx="8" cy="5" r="2.5" />
                 <path d="M3.5 14.5c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5" />
               </svg>
-              {company.member_count} {company.member_count === 1 ? 'person' : 'people'}
+              {company.member_count} {company.member_count === 1 ? 'editor' : 'editors'}
             </span>
 
             {/* Date */}

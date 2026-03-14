@@ -14,7 +14,7 @@ export default withAdmin(async (req, res, session, sql) => {
         COUNT(DISTINCT ct.id)::int as template_count
       FROM neon_auth.organization o
       LEFT JOIN public.company_settings cs ON cs.organization_id = o.id
-      LEFT JOIN neon_auth.member m ON m."organizationId" = o.id
+      LEFT JOIN neon_auth.member m ON m."organizationId" = o.id AND m."userId" != ${session.userId}
       LEFT JOIN public.company_templates ct ON ct.organization_id = o.id
       GROUP BY o.id, o.name, o.slug, o."createdAt", cs.agency_name
       ORDER BY o."createdAt" DESC
@@ -59,7 +59,7 @@ export default withAdmin(async (req, res, session, sql) => {
       slug: org.slug,
       createdAt: org.createdAt,
       agency_name: name.trim(),
-      member_count: 1,
+      member_count: 0,
       template_count: 0,
     });
   }
