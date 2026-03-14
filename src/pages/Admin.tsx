@@ -1,14 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { adminApi, type Company, type Member, type Invitation, type Template, type CompanyTemplate } from '../lib/adminApi';
+import { apiCompanySettings, apiCompanyAgents } from '../lib/api';
+import { settingsToClient } from '../lib/convert';
+import { createDefaultBrochureForOrg } from '../utils/defaults';
 import { templates } from '../components/pdf/templates';
+import type { BrochureData } from '../types/brochure';
 
 type AdminTab = 'companies' | 'templates';
 
 interface AdminProps {
   onBack: () => void;
+  onPreviewTemplate: (data: BrochureData) => void;
 }
 
-export default function Admin({ onBack }: AdminProps) {
+export default function Admin({ onBack, onPreviewTemplate }: AdminProps) {
   const [tab, setTab] = useState<AdminTab>('companies');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,7 +104,7 @@ export default function Admin({ onBack }: AdminProps) {
             </section>
           </>
         ) : (
-          <TemplatesTab />
+          <TemplatesTab onPreviewTemplate={onPreviewTemplate} />
         )}
       </main>
     </div>
@@ -825,7 +831,8 @@ function TemplatesSection({ orgId }: { orgId: string }) {
 /*  Templates Tab (global template registry)                           */
 /* ------------------------------------------------------------------ */
 
-function TemplatesTab() {
+function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate: (data: BrochureData) => void }) {
+  const { organization } = useAuth();
   const [tpls, setTpls] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
@@ -887,6 +894,30 @@ function TemplatesTab() {
       setTpls((prev) => prev.filter((t) => t.id !== tpl.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete template');
+    }
+  };
+
+  const handleView = async (tpl: Template) => {
+    if (!organization) return;
+    try {
+      const [settings, agents] = await Promise.all([
+        apiCompanySettings.get(organization.id),
+        apiCompanyAgents.list(organization.id),
+      ]);
+      const data = createDefaultBrochureForOrg(settingsToClient(settings, agents), tpl.id);
+      data.name = `Preview: ${tpl.name}`;
+      onPreviewTemplate(data);
+    } catch (err) {
+      console.error('Failed to preview template:', err);
+    }
+  };
+
+  const handleDuplicate = async (tpl: Template) => {
+    try {
+      const created = await adminApi.createTemplate(`${tpl.name} (copy)`, tpl.description);
+      setTpls((prev) => [...prev, created]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate template');
     }
   };
 
@@ -1035,14 +1066,31 @@ function TemplatesTab() {
                     </div>
 
                     {/* Actions */}
-                    <button
-                      onClick={() => handleDelete(tpl)}
-                      disabled={tpl.usage_count > 0}
-                      className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                      title={tpl.usage_count > 0 ? `Assigned to ${tpl.usage_count} company${tpl.usage_count !== 1 ? 'ies' : ''}` : 'Delete template'}
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => handleView(tpl)}
+                        disabled={!hasCode}
+                        className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={hasCode ? 'Preview in editor' : 'No code registered yet'}
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDuplicate(tpl)}
+                        className="text-[10px] text-gray-500 hover:text-gray-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-gray-100 transition-colors"
+                        title="Duplicate template"
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        onClick={() => handleDelete(tpl)}
+                        disabled={tpl.usage_count > 0}
+                        className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={tpl.usage_count > 0 ? `Assigned to ${tpl.usage_count} ${tpl.usage_count === 1 ? 'company' : 'companies'}` : 'Delete template'}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
