@@ -11,18 +11,18 @@ export default withAdmin(async (req, res, _session, sql) => {
   if (req.method === 'GET') {
     const rows = await sql`
       SELECT
-        t.id, t.name, t.description, t.created_at, t.updated_at,
+        t.id, t.name, t.display_name, t.description, t.created_at, t.updated_at,
         COUNT(DISTINCT ct.id)::int as usage_count
       FROM public.templates t
       LEFT JOIN public.company_templates ct ON ct.template_id = t.id
-      GROUP BY t.id, t.name, t.description, t.created_at, t.updated_at
+      GROUP BY t.id, t.name, t.display_name, t.description, t.created_at, t.updated_at
       ORDER BY t.created_at ASC
     `;
     return res.status(200).json(rows);
   }
 
   if (req.method === 'POST') {
-    const { name, description } = req.body ?? {};
+    const { name, display_name, description } = req.body ?? {};
     if (!name?.trim()) {
       return res.status(400).json({ error: 'Template name is required' });
     }
@@ -30,11 +30,12 @@ export default withAdmin(async (req, res, _session, sql) => {
     const id = randomBytes(8).toString('hex');
     const now = new Date().toISOString();
     const desc = (description ?? '').trim();
+    const dispName = (display_name ?? name).trim();
 
     const [row] = await sql`
-      INSERT INTO public.templates (id, name, description, created_at, updated_at)
-      VALUES (${id}, ${name.trim()}, ${desc}, ${now}, ${now})
-      RETURNING id, name, description, created_at, updated_at
+      INSERT INTO public.templates (id, name, display_name, description, created_at, updated_at)
+      VALUES (${id}, ${name.trim()}, ${dispName}, ${desc}, ${now}, ${now})
+      RETURNING id, name, display_name, description, created_at, updated_at
     `;
 
     return res.status(201).json({ ...row, usage_count: 0 });
@@ -46,9 +47,11 @@ export default withAdmin(async (req, res, _session, sql) => {
       return res.status(400).json({ error: 'Template id is required' });
     }
 
+    const { display_name } = req.body ?? {};
     const now = new Date().toISOString();
     const updates: Record<string, string> = {};
     if (name !== undefined) updates.name = name.trim();
+    if (display_name !== undefined) updates.display_name = display_name.trim();
     if (description !== undefined) updates.description = description.trim();
 
     if (Object.keys(updates).length === 0) {
@@ -59,10 +62,11 @@ export default withAdmin(async (req, res, _session, sql) => {
       UPDATE public.templates
       SET
         name = COALESCE(${updates.name ?? null}, name),
+        display_name = COALESCE(${updates.display_name ?? null}, display_name),
         description = COALESCE(${updates.description ?? null}, description),
         updated_at = ${now}
       WHERE id = ${id}
-      RETURNING id, name, description, created_at, updated_at
+      RETURNING id, name, display_name, description, created_at, updated_at
     `;
 
     if (!row) {

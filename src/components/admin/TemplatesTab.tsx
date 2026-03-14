@@ -18,7 +18,7 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editField, setEditField] = useState<'name' | 'description'>('name');
+  const [editField, setEditField] = useState<'name' | 'display_name' | 'description'>('name');
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState('');
 
@@ -54,7 +54,8 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
   };
 
   const handleSaveEdit = async (tpl: Template) => {
-    if (!editValue.trim() || editValue.trim() === (editField === 'name' ? tpl.name : tpl.description)) {
+    const current = editField === 'name' ? tpl.name : editField === 'display_name' ? tpl.display_name : tpl.description;
+    if (!editValue.trim() || editValue.trim() === current) {
       setEditingId(null);
       return;
     }
@@ -95,7 +96,7 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
 
   const handleDuplicate = async (tpl: Template) => {
     try {
-      const created = await adminApi.createTemplate(`${tpl.name} (copy)`, tpl.description);
+      const created = await adminApi.createTemplate(`${tpl.name} (copy)`, `${tpl.display_name} (copy)`, tpl.description);
       setTpls((prev) => [...prev, created]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to duplicate template');
@@ -172,8 +173,7 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                 <div key={tpl.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
                   <div className="flex items-start gap-4">
                     <div className="flex-1 min-w-0">
-                      {/* Name (display name users see) */}
-                      <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Display name</label>
+                      {/* Internal name */}
                       {editingId === tpl.id && editField === 'name' ? (
                         <input
                           type="text"
@@ -200,34 +200,66 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                         </h3>
                       )}
 
-                      {/* Description */}
-                      <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mt-2 block">Description</label>
-                      {editingId === tpl.id && editField === 'description' ? (
-                        <input
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => handleSaveEdit(tpl)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit(tpl);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          autoFocus
-                          className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                          placeholder="Add a description..."
-                        />
-                      ) : (
-                        <p
-                          className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
-                          onClick={() => {
-                            setEditingId(tpl.id);
-                            setEditField('description');
-                            setEditValue(tpl.description);
-                          }}
-                        >
-                          {tpl.description || 'Click to add description...'}
-                        </p>
-                      )}
+                      {/* Display name + description in a row */}
+                      <div className="flex items-start gap-6 mt-1.5">
+                        <div className="min-w-0">
+                          <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Display name</label>
+                          {editingId === tpl.id && editField === 'display_name' ? (
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleSaveEdit(tpl)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEdit(tpl);
+                                if (e.key === 'Escape') setEditingId(null);
+                              }}
+                              autoFocus
+                              className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                            />
+                          ) : (
+                            <p
+                              className="text-xs text-gray-600 cursor-pointer hover:text-amber-600 transition-colors"
+                              onClick={() => {
+                                setEditingId(tpl.id);
+                                setEditField('display_name');
+                                setEditValue(tpl.display_name);
+                              }}
+                            >
+                              {tpl.display_name || tpl.name}
+                            </p>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Description</label>
+                          {editingId === tpl.id && editField === 'description' ? (
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleSaveEdit(tpl)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveEdit(tpl);
+                                if (e.key === 'Escape') setEditingId(null);
+                              }}
+                              autoFocus
+                              className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                              placeholder="Add a description..."
+                            />
+                          ) : (
+                            <p
+                              className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
+                              onClick={() => {
+                                setEditingId(tpl.id);
+                                setEditField('description');
+                                setEditValue(tpl.description);
+                              }}
+                            >
+                              {tpl.description || 'Click to add...'}
+                            </p>
+                          )}
+                        </div>
+                      </div>
 
                       {/* Meta */}
                       <div className="flex items-center gap-3 mt-2">
