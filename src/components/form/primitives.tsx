@@ -65,3 +65,32 @@ export function TextArea({
     />
   );
 }
+
+export function ToggleSwitch({
+  checked,
+  onChange,
+  label,
+  children,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <label className="flex items-center gap-2.5 cursor-pointer select-none">
+      <div className="relative flex items-center">
+        <input
+          type="checkbox"
+          className="peer sr-only"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <div className="h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-amber-500 transition-colors" />
+        <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
+      </div>
+      {label && <span className="text-sm font-medium text-gray-700">{label}</span>}
+      {children}
+    </label>
+  );
+}

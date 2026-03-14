@@ -93,9 +93,11 @@ function reducer(state: HistoryState, action: Action): HistoryState {
 export function BrochureProvider({
   initial,
   children,
+  onSaveError,
 }: {
   initial: BrochureData;
   children: React.ReactNode;
+  onSaveError?: (err: unknown) => void;
 }) {
   const { organization } = useAuth();
   const [state, dispatch] = useReducer(reducer, {
@@ -106,14 +108,17 @@ export function BrochureProvider({
   });
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const isDirty = useRef(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   const setData = useCallback((data: BrochureData) => {
+    isDirty.current = true;
     dispatch({ type: 'SET', data });
   }, []);
 
   const updateField = useCallback(
     <K extends keyof BrochureData>(key: K, value: BrochureData[K]) => {
+      isDirty.current = true;
       dispatch({ type: 'UPDATE_FIELD', key, value });
     },
     []
@@ -149,13 +154,26 @@ export function BrochureProvider({
     saveTimer.current = setTimeout(() => {
       const row = brochureToRow(state.present, orgId);
       apiBrochures.update(state.present.id, row).then(() => {
+        isDirty.current = false;
         setLastSavedAt(new Date());
       }).catch((err) => {
         console.error('Auto-save failed:', err);
+        onSaveError?.(err);
       });
     }, 1000);
     return () => clearTimeout(saveTimer.current);
   }, [state.present, organization?.id]);
+
+  // Warn before navigating away with unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
 
   return (
     <BrochureContext.Provider

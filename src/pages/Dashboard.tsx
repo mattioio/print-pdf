@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { apiBrochures, apiCompanySettings, apiCompanyAgents } from '../lib/api';
 import { fetchOrgTemplates, type CompanyTemplate } from '../lib/adminApi';
 import { rowToBrochure, settingsToClient } from '../lib/convert';
@@ -8,6 +9,9 @@ import { templates } from '../components/pdf/templates';
 import { isAdmin } from '../lib/admin';
 import UserMenu from '../components/UserMenu';
 import AdminBar from '../components/AdminBar';
+import ActionButton from '../components/ActionButton';
+import TemplatePickerModal from '../components/TemplatePickerModal';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import type { BrochureData } from '../types/brochure';
 import type { BrochureRow } from '../lib/api';
 
@@ -19,12 +23,15 @@ interface DashboardProps {
 
 export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProps) {
   const { organization, user, signOut } = useAuth();
+  const { toast } = useToast();
   const showAdmin = isAdmin(user?.email);
   const [rows, setRows] = useState<BrochureRow[]>([]);
   const [companyName, setCompanyName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [templatePicker, setTemplatePicker] = useState<CompanyTemplate[] | null>(null);
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
   const orgId = organization?.id ?? '';
 
@@ -35,6 +42,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       setRows(list);
     } catch (err) {
       console.error('Failed to load brochures:', err);
+      toast('Failed to load brochures', 'error');
     } finally {
       setLoading(false);
     }
@@ -112,6 +120,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       }
     } catch (err) {
       console.error('Failed to create brochure:', err);
+      toast('Failed to create brochure', 'error');
     }
   };
 
@@ -131,6 +140,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       }
     } catch (err) {
       console.error('Failed to create brochure:', err);
+      toast('Failed to create brochure', 'error');
     }
   };
 
@@ -144,6 +154,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       onEdit(brochure);
     } catch (err) {
       console.error('Failed to load brochure:', err);
+      toast('Failed to open brochure', 'error');
     }
   };
 
@@ -154,6 +165,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       await reload();
     } catch (err) {
       console.error('Failed to duplicate brochure:', err);
+      toast('Failed to duplicate brochure', 'error');
     }
   };
 
@@ -163,6 +175,28 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
     setDeleteTarget(null);
     await reload();
   };
+
+  // Filter + sort brochures
+  const filteredRows = useMemo(() => {
+    let result = rows;
+
+    // Search filter
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (b) =>
+          (b.name || '').toLowerCase().includes(q) ||
+          (b.property_address || '').toLowerCase().includes(q),
+      );
+    }
+
+    // Sort
+    return [...result].sort((a, b) => {
+      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+      if (sortBy === 'oldest') return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(); // newest
+    });
+  }, [rows, search, sortBy]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -246,9 +280,38 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                 </button>
               </div>
 
+              {/* Search + Sort */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="relative flex-1 max-w-xs">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search brochures..."
+                    className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder:text-gray-300"
+                  />
+                </div>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name">Name A–Z</option>
+                </select>
+              </div>
+
               {/* Cards */}
+              {filteredRows.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-12">No brochures match "{search}"</p>
+              ) : (
               <div className="flex flex-col gap-2">
-                {rows.map((b) => (
+                {filteredRows.map((b) => (
                   <div
                     key={b.id}
                     className="relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group flex h-36"
@@ -302,40 +365,43 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button
-                          className="flex items-center gap-1.5 bg-black/5 hover:bg-amber-500 text-gray-400 hover:text-white rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
+                        <ActionButton
+                          label="Edit"
+                          hoverColor="hover:bg-amber-500"
                           onClick={(e) => { e.stopPropagation(); handleEdit(b); }}
-                        >
-                          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" />
-                          </svg>
-                          Edit
-                        </button>
-                        <button
-                          className="flex items-center gap-1.5 bg-black/5 hover:bg-gray-600 text-gray-400 hover:text-white rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
+                          icon={
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z" />
+                            </svg>
+                          }
+                        />
+                        <ActionButton
+                          label="Duplicate"
                           onClick={(e) => { e.stopPropagation(); handleDuplicate(b); }}
-                        >
-                          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="5" y="5" width="9" height="9" rx="1.5" />
-                            <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" />
-                          </svg>
-                          Duplicate
-                        </button>
-                        <button
-                          className="flex items-center gap-1.5 bg-black/5 hover:bg-red-600 text-gray-400 hover:text-white rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
+                          icon={
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="5" y="5" width="9" height="9" rx="1.5" />
+                              <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" />
+                            </svg>
+                          }
+                        />
+                        <ActionButton
+                          label="Delete"
+                          hoverColor="hover:bg-red-600"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: b.id, name: b.name }); }}
-                        >
-                          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
-                            <path d="M6.5 7v4M9.5 7v4" />
-                          </svg>
-                          Delete
-                        </button>
+                          icon={
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
+                              <path d="M6.5 7v4M9.5 7v4" />
+                            </svg>
+                          }
+                        />
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
+              )}
             </>
           )}
         </div>
@@ -343,90 +409,23 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
 
       {/* Template picker modal */}
       {templatePicker && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setTemplatePicker(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-base font-semibold text-gray-900 mb-1">Choose a template</h3>
-            <p className="text-sm text-gray-500 mb-5">Select a template for your new brochure.</p>
-            <div className="flex flex-col gap-2">
-              {templatePicker.map((ct) => {
-                const tpl = templates[ct.template_id];
-                return (
-                  <button
-                    key={ct.id}
-                    className="flex items-center gap-3 w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:border-amber-400 hover:bg-amber-50/50 transition-colors group"
-                    onClick={() => {
-                      setTemplatePicker(null);
-                      createBrochure(ct.template_id);
-                    }}
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-amber-500">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                        <path d="M14 2v6h6" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm text-gray-900 truncate">{ct.display_name}</div>
-                      {tpl && (
-                        <div className="text-xs text-gray-400 truncate">{tpl.description}</div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              className="w-full mt-4 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
-              onClick={() => setTemplatePicker(null)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+        <TemplatePickerModal
+          companyTemplates={templatePicker}
+          onSelect={(templateId) => {
+            setTemplatePicker(null);
+            createBrochure(templateId);
+          }}
+          onClose={() => setTemplatePicker(null)}
+        />
       )}
 
       {/* Delete confirmation modal */}
       {deleteTarget && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setDeleteTarget(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mb-4">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
-                <path d="M6.5 7v4M9.5 7v4" />
-              </svg>
-            </div>
-            <h3 className="text-base font-semibold text-gray-900 mb-1">Delete brochure</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              Are you sure you want to delete <strong>{deleteTarget.name || 'Untitled'}</strong>? This can't be undone.
-            </p>
-            <div className="flex gap-3">
-              <button
-                className="flex-1 px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
-                onClick={() => setDeleteTarget(null)}
-              >
-                Cancel
-              </button>
-              <button
-                className="flex-1 px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
-                onClick={confirmDelete}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          name={deleteTarget.name}
+          onConfirm={confirmDelete}
+          onClose={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

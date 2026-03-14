@@ -118,9 +118,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Load session on mount
+  // Load session on mount + auto-refresh every 10 minutes
   useEffect(() => {
     refreshSession();
+    const interval = setInterval(refreshSession, 10 * 60 * 1000);
+    return () => clearInterval(interval);
   }, [refreshSession]);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
