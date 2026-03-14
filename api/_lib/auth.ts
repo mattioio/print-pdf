@@ -25,10 +25,9 @@ export async function verifySession(authHeader: string | undefined): Promise<Ses
   const sql = neon(process.env.DATABASE_URL!);
 
   const rows = await sql`
-    SELECT s."userId", u.email, m."organizationId"
+    SELECT s."userId", u.email, s."activeOrganizationId" as "organizationId"
     FROM neon_auth.session s
     JOIN neon_auth.user u ON u.id = s."userId"
-    LEFT JOIN neon_auth.member m ON m."userId" = s."userId"
     WHERE s.token = ${token}
       AND s."expiresAt" > now()
     LIMIT 1
