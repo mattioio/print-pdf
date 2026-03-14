@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { apiCompanySettings, apiCompanyAgents, uploadImage } from '../lib/api';
+import { syncOrgName } from '../lib/adminApi';
 import { settingsToClient, clientToSettingsRow, type ClientCompanySettings } from '../lib/convert';
 import { FONT_OPTIONS } from '../components/pdf/shared/fonts';
 
@@ -28,7 +29,7 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 export default function Settings({ open, onClose }: SettingsProps) {
-  const { organization } = useAuth();
+  const { organization, updateOrganizationDisplayName } = useAuth();
   const [settings, setSettings] = useState<ClientCompanySettings>(DEFAULT_SETTINGS);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [visible, setVisible] = useState(false);
@@ -72,6 +73,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
   }, [open, orgId]);
 
   // Auto-save to API (debounced 500ms)
+  const lastSyncedName = useRef<string>('');
   useEffect(() => {
     if (!orgId || !loadedOrgRef.current) return;
 
@@ -84,9 +86,17 @@ export default function Settings({ open, onClose }: SettingsProps) {
       apiCompanyAgents.replace(orgId, settings.agents).catch((err) =>
         console.error('Failed to save agents:', err),
       );
+
+      // Sync org display name when agency name changes
+      const agencyName = settings.agency.name.trim();
+      if (agencyName && agencyName !== lastSyncedName.current) {
+        lastSyncedName.current = agencyName;
+        syncOrgName(orgId, agencyName);
+        updateOrganizationDisplayName(agencyName);
+      }
     }, 500);
     return () => clearTimeout(saveTimer.current);
-  }, [settings, orgId]);
+  }, [settings, orgId, updateOrganizationDisplayName]);
 
   const updateAgency = useCallback((key: string, value: string) => {
     setSettings((prev) => ({

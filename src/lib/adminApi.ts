@@ -41,6 +41,7 @@ export interface Company {
   slug: string;
   createdAt: string;
   template_id: string;
+  agency_name: string | null;
   member_count: number;
 }
 
@@ -131,6 +132,19 @@ export async function acceptInvite(code: string): Promise<void> {
 /* ------------------------------------------------------------------ */
 /*  User self-service (authenticated)                                  */
 /* ------------------------------------------------------------------ */
+
+export async function syncOrgName(orgId: string, name: string): Promise<void> {
+  const token = await getToken();
+  await fetch('/api/org/sync-name', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ orgId, name }),
+  });
+  // Fire-and-forget — don't block the settings save on this
+}
 
 export async function fetchUserFlags(): Promise<{ mustChangePassword: boolean }> {
   const token = await getToken();

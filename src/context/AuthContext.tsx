@@ -35,6 +35,7 @@ interface AuthContextValue extends AuthState {
   createOrganization: (name: string) => Promise<string>;
   setActiveOrganization: (orgId: string) => Promise<void>;
   refreshSession: () => Promise<void>;
+  updateOrganizationDisplayName: (name: string) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -159,6 +160,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refreshSession();
   }, [refreshSession]);
 
+  // Lightweight local-only update for org display name (no API call)
+  const updateOrganizationDisplayName = useCallback((name: string) => {
+    setState((prev) => {
+      if (!prev.organization) return prev;
+      const updatedOrg = { ...prev.organization, name };
+      const updatedOrgs = prev.organizations.map((o) =>
+        o.id === prev.organization!.id ? { ...o, name } : o,
+      );
+      return { ...prev, organization: updatedOrg, organizations: updatedOrgs };
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -169,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         createOrganization,
         setActiveOrganization,
         refreshSession,
+        updateOrganizationDisplayName,
       }}
     >
       {children}

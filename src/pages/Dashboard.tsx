@@ -44,15 +44,20 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
     setLoading(true);
   }, [orgId, organization?.name]);
 
-  // Load brochures + company name
+  // Load brochures + company name (with cancellation to prevent stale responses)
   useEffect(() => {
+    let cancelled = false;
     reload();
     if (orgId) {
       apiCompanySettings.get(orgId).then((s) => {
+        if (cancelled) return;
         if (s?.agency_name) setCompanyName(s.agency_name);
         else setCompanyName(organization?.name ?? '');
-      }).catch(() => setCompanyName(organization?.name ?? ''));
+      }).catch(() => {
+        if (!cancelled) setCompanyName(organization?.name ?? '');
+      });
     }
+    return () => { cancelled = true; };
   }, [reload, orgId, organization?.name]);
 
   const handleNew = async () => {

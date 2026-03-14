@@ -169,7 +169,7 @@ function CompanyCard({
         onClick={onToggle}
       >
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-semibold text-gray-900">{company.name}</h3>
+          <h3 className="text-sm font-semibold text-gray-900">{company.agency_name || company.name}</h3>
           <p className="text-xs text-gray-400 mt-0.5">
             {templates[company.template_id]?.name ?? company.template_id} template
             {' \u00b7 '}
