@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { apiCompanySettings, apiCompanyAgents, uploadImage } from '../lib/api';
 import { syncOrgName } from '../lib/adminApi';
 import { settingsToClient, clientToSettingsRow, type ClientCompanySettings } from '../lib/convert';
@@ -30,6 +31,7 @@ function Label({ children }: { children: React.ReactNode }) {
 
 export default function Settings({ open, onClose }: SettingsProps) {
   const { organization, updateOrganizationDisplayName } = useAuth();
+  const { toast } = useToast();
   const [settings, setSettings] = useState<ClientCompanySettings>(DEFAULT_SETTINGS);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [visible, setVisible] = useState(false);
@@ -69,6 +71,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
       loadedOrgRef.current = orgId;
     }).catch((err) => {
       console.error('Failed to load settings:', err);
+      toast('Failed to load settings', 'error');
     });
   }, [open, orgId]);
 
@@ -80,12 +83,14 @@ export default function Settings({ open, onClose }: SettingsProps) {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       const row = clientToSettingsRow(settings);
-      apiCompanySettings.upsert(orgId, row).catch((err) =>
-        console.error('Failed to save settings:', err),
-      );
-      apiCompanyAgents.replace(orgId, settings.agents).catch((err) =>
-        console.error('Failed to save agents:', err),
-      );
+      apiCompanySettings.upsert(orgId, row).catch((err) => {
+        console.error('Failed to save settings:', err);
+        toast("Settings couldn't be saved", 'error');
+      });
+      apiCompanyAgents.replace(orgId, settings.agents).catch((err) => {
+        console.error('Failed to save agents:', err);
+        toast("Settings couldn't be saved", 'error');
+      });
 
       // Sync org display name when agency name changes
       const agencyName = settings.agency.name.trim();
@@ -130,6 +135,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
             updateAgency('logoUrl', url);
           } catch (err) {
             console.error('Logo upload failed:', err);
+            toast('Logo upload failed', 'error');
             // Fallback to base64
             updateAgency('logoUrl', canvas.toDataURL('image/png'));
           }

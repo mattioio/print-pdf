@@ -1,15 +1,26 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import { BrochureProvider } from './context/BrochureContext';
-import Dashboard from './pages/Dashboard';
-import Editor from './pages/Editor';
 import Login from './pages/Login';
-import JoinCompany from './pages/JoinCompany';
-import InviteSignup from './pages/InviteSignup';
-import Admin from './pages/Admin';
-import ChangePassword from './pages/ChangePassword';
-import Settings from './pages/Settings';
+import ToastStack from './components/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import type { BrochureData } from './types/brochure';
+
+// Lazy-loaded pages (keeps initial bundle small)
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Editor = lazy(() => import('./pages/Editor'));
+const Admin = lazy(() => import('./pages/Admin'));
+const Settings = lazy(() => import('./pages/Settings'));
+const JoinCompany = lazy(() => import('./pages/JoinCompany'));
+const InviteSignup = lazy(() => import('./pages/InviteSignup'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
+
+const PageSpinner = (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 type Route =
   | { page: 'dashboard' }
@@ -18,6 +29,7 @@ type Route =
 
 function AppRoutes() {
   const { user, organization, mustChangePassword, loading, refreshSession } = useAuth();
+  const { toast } = useToast();
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsRevision, setSettingsRevision] = useState(0);
@@ -73,10 +85,12 @@ function AppRoutes() {
   const inviteCode = params.get('invite');
   if (inviteCode) {
     return (
-      <InviteSignup
-        code={inviteCode}
-        onDone={() => window.location.replace('/')}
-      />
+      <Suspense fallback={PageSpinner}>
+        <InviteSignup
+          code={inviteCode}
+          onDone={() => window.location.replace('/')}
+        />
+      </Suspense>
     );
   }
 
@@ -87,50 +101,67 @@ function AppRoutes() {
 
   // Must change password (admin-reset flow)
   if (mustChangePassword) {
-    return <ChangePassword onDone={() => refreshSession()} />;
+    return (
+      <Suspense fallback={PageSpinner}>
+        <ChangePassword onDone={() => refreshSession()} />
+      </Suspense>
+    );
   }
 
   // No organization
   if (!organization) {
-    return <JoinCompany />;
+    return (
+      <Suspense fallback={PageSpinner}>
+        <JoinCompany />
+      </Suspense>
+    );
   }
 
   // Main app
   return (
-    <>
-      {route.page === 'admin' ? (
-        <Admin onBack={handleBack} onPreviewTemplate={handleEdit} />
-      ) : route.page === 'editor' ? (
-        <BrochureProvider initial={route.data} key={route.data.id}>
-          <Editor
-            onBack={handleBack}
+    <ErrorBoundary>
+      <Suspense fallback={PageSpinner}>
+        {route.page === 'admin' ? (
+          <Admin onBack={handleBack} onPreviewTemplate={handleEdit} />
+        ) : route.page === 'editor' ? (
+          <ErrorBoundary key={route.data.id}>
+            <BrochureProvider initial={route.data} onSaveError={() => toast("Changes couldn't be saved", 'error')}>
+              <Editor
+                onBack={handleBack}
+                onSettings={() => setSettingsOpen(true)}
+                settingsRevision={settingsRevision}
+              />
+            </BrochureProvider>
+          </ErrorBoundary>
+        ) : (
+          <Dashboard
+            onEdit={handleEdit}
             onSettings={() => setSettingsOpen(true)}
-            settingsRevision={settingsRevision}
+            onAdmin={handleAdmin}
           />
-        </BrochureProvider>
-      ) : (
-        <Dashboard
-          onEdit={handleEdit}
-          onSettings={() => setSettingsOpen(true)}
-          onAdmin={handleAdmin}
-        />
-      )}
+        )}
+      </Suspense>
 
-      <Settings
-        open={settingsOpen}
-        onClose={() => {
-          setSettingsOpen(false);
-          setSettingsRevision((r) => r + 1);
-        }}
-      />
-    </>
+      <Suspense fallback={null}>
+        <Settings
+          open={settingsOpen}
+          onClose={() => {
+            setSettingsOpen(false);
+            setSettingsRevision((r) => r + 1);
+          }}
+        />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <ToastProvider>
+        <AppRoutes />
+        <ToastStack />
+      </ToastProvider>
     </AuthProvider>
   );
 }

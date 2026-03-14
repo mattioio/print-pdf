@@ -6,6 +6,12 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Toast notification animation ── */
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* ── Zoom slider (iOS-style thick track, icons sit inside the track) ── */
 .zoom-slider {
   -webkit-appearance: none;

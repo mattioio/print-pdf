@@ -3,7 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { useBrochure } from '../../../context/BrochureContext';
 import { parseCoordsFromUrl, resolveAndParseCoords, generateStaticMap } from '../../../utils/maps';
 import ImageUploader from '../ImageUploader';
-import { Section, SectionHeading, Label, Input, TextArea } from '../primitives';
+import { Section, SectionHeading, Label, Input, TextArea, ToggleSwitch } from '../primitives';
 import type { GalleryImage } from '../../../types/brochure';
 
 export default function PropertySection() {
@@ -233,22 +233,15 @@ export default function PropertySection() {
 
         {/* Gallery toggle + slots */}
         <div className="mt-1">
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <div className="relative flex items-center">
-              <input
-                type="checkbox"
-                className="peer sr-only"
-                checked={!!data.showGallery}
-                onChange={(e) => updateField('showGallery', e.target.checked)}
-              />
-              <div className="h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-amber-500 transition-colors" />
-              <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
-            </div>
-            <span className="text-sm font-medium text-gray-700">Photo gallery</span>
+          <ToggleSwitch
+            checked={!!data.showGallery}
+            onChange={(v) => updateField('showGallery', v)}
+            label="Photo gallery"
+          >
             {data.showGallery && gallery.length > 0 && (
               <span className="text-xs text-gray-400 ml-auto">{gallery.length}/{MAX_GALLERY}</span>
             )}
-          </label>
+          </ToggleSwitch>
           {data.showGallery && (
             <div className="flex gap-2 mt-2.5" ref={galleryContainerRef}>
               {gallery.map((img, i) => (
@@ -413,25 +406,18 @@ export default function PropertySection() {
         {/* Premises Licence toggle */}
         <div>
           <Label>Premises Licence</Label>
-          <label className="flex items-center gap-2.5 cursor-pointer select-none">
-            <div className="relative flex items-center">
-              <input
-                type="checkbox"
-                className="peer sr-only"
-                checked={!!data.premisesLicence}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    updateField('premisesLicence', 'The premises benefits from a 24 hour licence');
-                  } else {
-                    updateField('premisesLicence', '');
-                  }
-                }}
-              />
-              <div className="h-5 w-9 rounded-full bg-gray-200 peer-checked:bg-amber-500 transition-colors" />
-              <div className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-4" />
-            </div>
+          <ToggleSwitch
+            checked={!!data.premisesLicence}
+            onChange={(v) => {
+              if (v) {
+                updateField('premisesLicence', 'The premises benefits from a 24 hour licence');
+              } else {
+                updateField('premisesLicence', '');
+              }
+            }}
+          >
             <span className="text-sm text-gray-500">{data.premisesLicence ? 'Enabled' : 'None'}</span>
-          </label>
+          </ToggleSwitch>
           {!!data.premisesLicence && (
             <div className="mt-2">
               <Input
