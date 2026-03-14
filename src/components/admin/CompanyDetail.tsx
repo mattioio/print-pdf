@@ -8,7 +8,7 @@ import CompanySettingsTab from './CompanySettingsTab';
 
 type DetailTab = 'people' | 'templates' | 'settings';
 
-export default function CompanyDetail({ orgId }: { orgId: string }) {
+export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: string; onAgencyNameChange?: (name: string) => void }) {
   const { toast } = useToast();
   const [tab, setTab] = useState<DetailTab>('people');
   const [members, setMembers] = useState<Member[]>([]);
@@ -211,6 +211,7 @@ export default function CompanyDetail({ orgId }: { orgId: string }) {
           orgId={orgId}
           initialSettings={initialSettings}
           initialAgents={initialAgents}
+          onAgencyNameChange={onAgencyNameChange}
         />
       )}
 

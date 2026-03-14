@@ -5,10 +5,12 @@ export default function CompanyCard({
   company,
   expanded,
   onToggle,
+  onAgencyNameChange,
 }: {
   company: Company;
   expanded: boolean;
   onToggle: () => void;
+  onAgencyNameChange?: (name: string) => void;
 }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -34,7 +36,7 @@ export default function CompanyCard({
         </svg>
       </button>
 
-      {expanded && <CompanyDetail orgId={company.id} />}
+      {expanded && <CompanyDetail orgId={company.id} onAgencyNameChange={onAgencyNameChange} />}
     </div>
   );
 }
