@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
-import { verifySession } from '../_lib/auth';
+import { verifySession, isAdminEmail } from '../_lib/auth';
 
 /**
  * GET /api/org/templates — list templates assigned to the user's organization
  * Authenticated (any logged-in user), scoped to their own org.
+ * Draft templates are only visible to platform admins.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
@@ -18,14 +19,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const sql = neon(process.env.DATABASE_URL!);
+    const admin = isAdminEmail(session.email);
 
-    const rows = await sql`
-      SELECT ct.id, ct.organization_id, ct.template_id, t.display_name, ct.sort_order, ct.created_at
-      FROM public.company_templates ct
-      JOIN public.templates t ON t.id = ct.template_id
-      WHERE ct.organization_id = ${session.organizationId}
-      ORDER BY ct.sort_order
-    `;
+    // Admins see all templates (including drafts); regular users only see published
+    const rows = admin
+      ? await sql`
+          SELECT ct.id, ct.organization_id, ct.template_id, t.display_name, t.status, ct.sort_order, ct.created_at
+          FROM public.company_templates ct
+          JOIN public.templates t ON t.id = ct.template_id
+          WHERE ct.organization_id = ${session.organizationId}
+          ORDER BY ct.sort_order
+        `
+      : await sql`
+          SELECT ct.id, ct.organization_id, ct.template_id, t.display_name, t.status, ct.sort_order, ct.created_at
+          FROM public.company_templates ct
+          JOIN public.templates t ON t.id = ct.template_id
+          WHERE ct.organization_id = ${session.organizationId}
+            AND t.status = 'published'
+          ORDER BY ct.sort_order
+        `;
 
     return res.status(200).json(rows);
   } catch (err) {

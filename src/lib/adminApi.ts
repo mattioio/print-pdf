@@ -68,6 +68,7 @@ export interface Template {
   name: string;
   display_name: string;
   description: string;
+  status: 'draft' | 'published';
   usage_count: number;
   created_at: string;
   updated_at: string;
@@ -129,7 +130,7 @@ export const adminApi = {
       body: JSON.stringify({ name, ...(display_name !== undefined && { display_name }), ...(description !== undefined && { description }) }),
     }),
 
-  updateTemplate: (id: string, data: { name?: string; display_name?: string; description?: string }) =>
+  updateTemplate: (id: string, data: { name?: string; display_name?: string; description?: string; status?: string }) =>
     adminFetch<Template>('/api/admin/templates', {
       method: 'PATCH',
       body: JSON.stringify({ id, ...data }),

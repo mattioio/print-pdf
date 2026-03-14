@@ -4,16 +4,14 @@ import { useToast } from '../context/ToastContext';
 import CreateCompanyForm from '../components/admin/CreateCompanyForm';
 import CompanyCard from '../components/admin/CompanyCard';
 import TemplatesTab from '../components/admin/TemplatesTab';
-import type { BrochureData } from '../types/brochure';
 
 type AdminTab = 'companies' | 'templates';
 
 interface AdminProps {
   onBack: () => void;
-  onPreviewTemplate: (data: BrochureData) => void;
 }
 
-export default function Admin({ onBack, onPreviewTemplate }: AdminProps) {
+export default function Admin({ onBack }: AdminProps) {
   const { toast } = useToast();
   const [tab, setTab] = useState<AdminTab>('companies');
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -102,7 +100,7 @@ export default function Admin({ onBack, onPreviewTemplate }: AdminProps) {
             </section>
           </>
         ) : (
-          <TemplatesTab onPreviewTemplate={onPreviewTemplate} />
+          <TemplatesTab />
         )}
       </main>
     </div>
