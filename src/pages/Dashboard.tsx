@@ -354,9 +354,9 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                     {/* Info */}
                     <div className="flex-1 min-w-0 px-5 py-3.5 flex flex-col justify-between">
                       <div>
-                        <h3 className="font-semibold text-gray-900 truncate">{b.name || 'Untitled'}</h3>
-                        {b.property_address && (
-                          <p className="text-sm text-gray-400 mt-0.5 truncate">{b.property_address}</p>
+                        <h3 className="font-semibold text-gray-900 truncate">{b.headline || b.name || 'Untitled'}</h3>
+                        {b.location_name && (
+                          <p className="text-sm text-gray-500 mt-0.5 truncate font-medium">{b.location_name}</p>
                         )}
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-gray-300">
