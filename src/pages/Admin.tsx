@@ -93,6 +93,11 @@ export default function Admin({ onBack }: AdminProps) {
                       company={c}
                       expanded={expandedOrg === c.id}
                       onToggle={() => setExpandedOrg(expandedOrg === c.id ? null : c.id)}
+                      onAgencyNameChange={(name) =>
+                        setCompanies((prev) =>
+                          prev.map((co) => co.id === c.id ? { ...co, agency_name: name } : co),
+                        )
+                      }
                     />
                   ))}
                 </div>

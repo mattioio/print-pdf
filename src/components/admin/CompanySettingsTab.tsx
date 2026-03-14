@@ -22,9 +22,10 @@ interface Props {
   orgId: string;
   initialSettings: AdminCompanySettings | null;
   initialAgents: AdminCompanyAgent[];
+  onAgencyNameChange?: (name: string) => void;
 }
 
-export default function CompanySettingsTab({ orgId, initialSettings, initialAgents }: Props) {
+export default function CompanySettingsTab({ orgId, initialSettings, initialAgents, onAgencyNameChange }: Props) {
   const { toast } = useToast();
   const [settings, setSettings] = useState<AdminCompanySettings>(initialSettings ?? DEFAULT_SETTINGS);
   const [agents, setAgents] = useState<AdminCompanyAgent[]>(initialAgents);
@@ -55,7 +56,8 @@ export default function CompanySettingsTab({ orgId, initialSettings, initialAgen
 
   const updateField = useCallback((key: keyof AdminCompanySettings, value: string) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
-  }, []);
+    if (key === 'agency_name') onAgencyNameChange?.(value);
+  }, [onAgencyNameChange]);
 
   const handleLogoUpload = useCallback(async (file: File) => {
     const img = new window.Image();
