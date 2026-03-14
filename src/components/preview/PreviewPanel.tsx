@@ -31,6 +31,9 @@ export default function PreviewPanel({ sidebarCollapsed, onToggleSidebar, settin
   const [companySettings, setCompanySettings] = useState<ClientCompanySettings | null>(null);
   const orgId = organization?.id ?? '';
 
+  // Reset when org changes
+  useEffect(() => { setCompanySettings(null); }, [orgId]);
+
   useEffect(() => {
     if (!orgId) return;
     Promise.all([

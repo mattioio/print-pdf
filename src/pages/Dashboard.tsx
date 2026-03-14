@@ -37,7 +37,14 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
     }
   }, [orgId]);
 
-  // Load brochures + company name on mount
+  // Reset state when org changes, then reload
+  useEffect(() => {
+    setCompanyName(organization?.name ?? '');
+    setRows([]);
+    setLoading(true);
+  }, [orgId, organization?.name]);
+
+  // Load brochures + company name
   useEffect(() => {
     reload();
     if (orgId) {
@@ -133,7 +140,11 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* App header */}
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-gray-200">
+      <header className="sticky top-0 z-20">
+        {/* Admin bar (platform admins only) */}
+        {showAdmin && <AdminBar onAdmin={onAdmin} />}
+
+        <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-5xl mx-auto flex items-center h-14 px-6">
           {/* Brand */}
           <div className="min-w-0 flex flex-col -space-y-0.5">
@@ -164,10 +175,8 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
             <UserMenu user={user} onSignOut={signOut} />
           )}
         </div>
+        </div>
       </header>
-
-      {/* Admin bar (platform admins only) */}
-      {showAdmin && <AdminBar onAdmin={onAdmin} />}
 
       {/* Content */}
       <main className="flex-1">
