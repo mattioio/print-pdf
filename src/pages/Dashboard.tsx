@@ -30,6 +30,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [templatePicker, setTemplatePicker] = useState<CompanyTemplate[] | null>(null);
+  const [hasTemplates, setHasTemplates] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
@@ -53,9 +54,10 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
     setCompanyName(organization?.name ?? '');
     setRows([]);
     setLoading(true);
+    setHasTemplates(true);
   }, [orgId, organization?.name]);
 
-  // Load brochures + company name (with cancellation to prevent stale responses)
+  // Load brochures + company name + template availability
   useEffect(() => {
     let cancelled = false;
     reload();
@@ -67,6 +69,9 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
       }).catch(() => {
         if (!cancelled) setCompanyName(organization?.name ?? '');
       });
+      fetchOrgTemplates().then((tpls) => {
+        if (!cancelled) setHasTemplates(tpls.length > 0);
+      }).catch(() => {});
     }
     return () => { cancelled = true; };
   }, [reload, orgId, organization?.name]);
@@ -129,8 +134,9 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
     try {
       const companyTemplates = await fetchOrgTemplates();
       if (companyTemplates.length === 0) {
-        // No templates assigned — fallback to classic
-        await createBrochure('classic');
+        // No templates assigned — can't create
+        toast('No templates assigned to this company. Ask an admin to assign one.', 'warning');
+        return;
       } else if (companyTemplates.length === 1) {
         // Single template — create immediately
         await createBrochure(companyTemplates[0].template_id);
@@ -258,14 +264,18 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
               </div>
               <h2 className="text-lg font-semibold text-gray-900 mb-1">No brochures yet</h2>
               <p className="text-sm text-gray-400 mb-6 max-w-xs">
-                Create your first property brochure to get started. It only takes a few minutes.
+                {hasTemplates
+                  ? 'Create your first property brochure to get started. It only takes a few minutes.'
+                  : 'No templates have been assigned to this company yet. Ask an admin to assign one.'}
               </p>
+              {hasTemplates && (
               <button
                 className="px-5 py-2.5 bg-amber-500 text-white font-medium rounded-lg hover:bg-amber-600 transition-colors text-sm"
                 onClick={handleNew}
               >
                 Create your first brochure
               </button>
+              )}
             </div>
           ) : (
             <>
@@ -273,8 +283,10 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-medium text-gray-400">My brochures</h2>
                 <button
-                  className="px-4 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+                  className={`px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors ${hasTemplates ? 'bg-amber-500 hover:bg-amber-600' : 'bg-gray-300 cursor-not-allowed'}`}
                   onClick={handleNew}
+                  disabled={!hasTemplates}
+                  title={hasTemplates ? undefined : 'No templates assigned to this company'}
                 >
                   New Brochure
                 </button>
