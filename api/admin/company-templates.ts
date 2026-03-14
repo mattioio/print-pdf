@@ -3,7 +3,6 @@ import { withAdmin } from '../_lib/auth';
 /**
  * GET    /api/admin/company-templates?orgId=xxx — list templates for a company
  * POST   /api/admin/company-templates — assign template to company
- * PATCH  /api/admin/company-templates — update display name
  * DELETE /api/admin/company-templates — remove assignment
  */
 export default withAdmin(async (req, res, _session, sql) => {
@@ -25,13 +24,13 @@ export default withAdmin(async (req, res, _session, sql) => {
       return res.status(400).json({ error: 'organization_id and template_id required' });
     }
 
-    // Get template name to use as display_name
-    const [tpl] = await sql`SELECT name FROM public.templates WHERE id = ${template_id}`;
+    // Get template display_name
+    const [tpl] = await sql`SELECT display_name FROM public.templates WHERE id = ${template_id}`;
     if (!tpl) return res.status(400).json({ error: 'Template not found' });
 
     const [row] = await sql`
       INSERT INTO public.company_templates (organization_id, template_id, display_name, sort_order)
-      VALUES (${organization_id}, ${template_id}, ${tpl.name}, ${sort_order})
+      VALUES (${organization_id}, ${template_id}, ${tpl.display_name}, ${sort_order})
       RETURNING *
     `;
     return res.status(201).json(row);
