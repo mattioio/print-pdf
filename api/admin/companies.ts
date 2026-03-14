@@ -20,11 +20,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         SELECT
           o.id, o.name, o.slug, o."createdAt",
           COALESCE(cs.template_id, 'classic') as template_id,
+          cs.agency_name,
           COUNT(DISTINCT m.id)::int as member_count
         FROM neon_auth.organization o
         LEFT JOIN public.company_settings cs ON cs.organization_id = o.id
         LEFT JOIN neon_auth.member m ON m."organizationId" = o.id
-        GROUP BY o.id, o.name, o.slug, o."createdAt", cs.template_id
+        GROUP BY o.id, o.name, o.slug, o."createdAt", cs.template_id, cs.agency_name
         ORDER BY o."createdAt" DESC
       `;
       return res.status(200).json(rows);
