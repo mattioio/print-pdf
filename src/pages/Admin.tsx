@@ -205,6 +205,7 @@ function CompanyDetail({ orgId }: { orgId: string }) {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [resetTarget, setResetTarget] = useState<Member | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -265,25 +266,34 @@ function CompanyDetail({ orgId }: { orgId: string }) {
         {members.length === 0 ? (
           <p className="text-xs text-gray-400">No members yet.</p>
         ) : (
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {members.map((m) => (
-              <div key={m.id} className="flex items-center gap-3 text-sm">
+              <div key={m.id} className="flex items-center gap-3">
                 {m.image ? (
-                  <img src={m.image} alt="" className="w-6 h-6 rounded-full" />
+                  <img src={m.image} alt="" className="w-8 h-8 rounded-full" />
                 ) : (
-                  <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-medium text-gray-400">
+                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-400">
                     {m.name?.[0]?.toUpperCase() ?? '?'}
                   </div>
                 )}
-                <span className="text-gray-900 font-medium">{m.name}</span>
-                <span className="text-gray-400">{m.email}</span>
-                <span className="text-[10px] text-gray-300 uppercase">{m.role}</span>
-                <button
-                  className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase ml-auto"
-                  onClick={() => setResetTarget(m)}
-                >
-                  Reset
-                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{m.email}</p>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors"
+                    onClick={() => setResetTarget(m)}
+                  >
+                    Reset Password
+                  </button>
+                  <button
+                    className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
+                    onClick={() => setDeleteTarget(m)}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -351,6 +361,19 @@ function CompanyDetail({ orgId }: { orgId: string }) {
         <ResetPasswordModal
           member={resetTarget}
           onClose={() => setResetTarget(null)}
+        />
+      )}
+
+      {/* Remove Confirmation Modal */}
+      {deleteTarget && (
+        <RemoveMemberModal
+          member={deleteTarget}
+          orgId={orgId}
+          onClose={() => setDeleteTarget(null)}
+          onRemoved={() => {
+            setMembers((prev) => prev.filter((m) => m.id !== deleteTarget.id));
+            setDeleteTarget(null);
+          }}
         />
       )}
     </div>
@@ -497,6 +520,82 @@ function ResetPasswordModal({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Remove Member Modal                                                */
+/* ------------------------------------------------------------------ */
+
+function RemoveMemberModal({
+  member,
+  orgId,
+  onClose,
+  onRemoved,
+}: {
+  member: Member;
+  orgId: string;
+  onClose: () => void;
+  onRemoved: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleRemove = async () => {
+    setError('');
+    setSubmitting(true);
+    try {
+      await adminApi.removeMember(member.id, orgId);
+      onRemoved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove member');
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Scrim */}
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+
+      {/* Dialog */}
+      <div
+        className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm mx-4 overflow-hidden"
+        style={{ animation: 'userMenuIn 0.15s ease-out' }}
+      >
+        <div className="px-6 pt-5 pb-4">
+          <h3 className="text-base font-semibold text-gray-900 mb-1">Remove Member</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            Are you sure you want to remove{' '}
+            <span className="font-medium text-gray-700">{member.name}</span>{' '}
+            <span className="text-gray-400">({member.email})</span>{' '}
+            from this company?
+          </p>
+          <p className="text-xs text-gray-400 mb-4">
+            Their account won't be deleted, but they'll lose access to this company's brochures.
+          </p>
+
+          {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRemove}
+              disabled={submitting}
+              className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
+            >
+              {submitting ? 'Removing...' : 'Remove'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
