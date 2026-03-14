@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { BrochureProvider } from './context/BrochureContext';
 import Dashboard from './pages/Dashboard';
@@ -21,6 +21,16 @@ function AppRoutes() {
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsRevision, setSettingsRevision] = useState(0);
+
+  // When org changes (admin switching companies), go back to dashboard
+  const prevOrgRef = useRef(organization?.id);
+  useEffect(() => {
+    if (prevOrgRef.current && organization?.id && prevOrgRef.current !== organization.id) {
+      setRoute({ page: 'dashboard' });
+      setSettingsOpen(false);
+    }
+    prevOrgRef.current = organization?.id;
+  }, [organization?.id]);
 
   const handleEdit = useCallback((data: BrochureData) => {
     setRoute({ page: 'editor', data });

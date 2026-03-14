@@ -49,7 +49,13 @@ export default function Settings({ open, onClose }: SettingsProps) {
     }
   }, [open]);
 
-  // Load settings from API when drawer opens
+  // Reset state when org changes — prevents auto-save from writing old settings to new org
+  useEffect(() => {
+    setSettings(DEFAULT_SETTINGS);
+    loadedOrgRef.current = null;
+  }, [orgId]);
+
+  // Load settings from API when drawer opens (or org changes while open)
   useEffect(() => {
     if (!open || !orgId) return;
     if (loadedOrgRef.current === orgId) return; // already loaded for this org

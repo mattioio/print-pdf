@@ -92,6 +92,12 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify({ userId, password }),
     }),
+
+  removeMember: (userId: string, organizationId: string) =>
+    adminFetch<{ success: boolean }>(`/api/admin/users/${userId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ organizationId }),
+    }),
 };
 
 /* ------------------------------------------------------------------ */
