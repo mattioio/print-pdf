@@ -72,6 +72,15 @@ export interface Template {
   updated_at: string;
 }
 
+export interface CompanyTemplate {
+  id: string;
+  organization_id: string;
+  template_id: string;
+  display_name: string;
+  sort_order: number;
+  created_at: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  API methods                                                        */
 /* ------------------------------------------------------------------ */
@@ -127,6 +136,28 @@ export const adminApi = {
 
   deleteTemplate: (id: string) =>
     adminFetch<{ ok: boolean }>('/api/admin/templates', {
+      method: 'DELETE',
+      body: JSON.stringify({ id }),
+    }),
+
+  // Company template assignments
+  listCompanyTemplates: (orgId: string) =>
+    adminFetch<CompanyTemplate[]>(`/api/admin/company-templates?orgId=${orgId}`),
+
+  assignCompanyTemplate: (data: { organization_id: string; template_id: string; display_name: string; sort_order: number }) =>
+    adminFetch<CompanyTemplate>('/api/admin/company-templates', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateCompanyTemplate: (id: string, display_name: string) =>
+    adminFetch<CompanyTemplate>('/api/admin/company-templates', {
+      method: 'PATCH',
+      body: JSON.stringify({ id, display_name }),
+    }),
+
+  removeCompanyTemplate: (id: string) =>
+    adminFetch<{ ok: boolean }>('/api/admin/company-templates', {
       method: 'DELETE',
       body: JSON.stringify({ id }),
     }),

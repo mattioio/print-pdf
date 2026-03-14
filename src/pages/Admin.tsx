@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { adminApi, type Company, type Member, type Invitation, type Template } from '../lib/adminApi';
-import { apiCompanyTemplates, type CompanyTemplateRow } from '../lib/api';
+import { adminApi, type Company, type Member, type Invitation, type Template, type CompanyTemplate } from '../lib/adminApi';
 import { templates } from '../components/pdf/templates';
 
 type AdminTab = 'companies' | 'templates';
@@ -185,7 +184,7 @@ function CompanyCard({
           <p className="text-xs text-gray-400 mt-0.5">
             {company.template_count} template{company.template_count !== 1 ? 's' : ''}
             {' \u00b7 '}
-            {company.member_count} member{company.member_count !== 1 ? 's' : ''}
+            {company.member_count} {company.member_count === 1 ? 'person' : 'people'}
             {' \u00b7 '}
             {new Date(company.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
           </p>
@@ -270,106 +269,117 @@ function CompanyDetail({ orgId }: { orgId: string }) {
     );
   }
 
+  const pendingInvites = invitations.filter((inv) => !inv.used_at);
+
   return (
     <div className="px-5 pb-4 border-t border-gray-100 pt-3 space-y-4">
-      {/* Members */}
+      {/* People — members + pending invites + invite form */}
       <div>
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Members</h4>
-        {members.length === 0 ? (
-          <p className="text-xs text-gray-400">No members yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {members.map((m) => (
-              <div key={m.id} className="flex items-center gap-3">
-                {m.image ? (
-                  <img src={m.image} alt="" className="w-8 h-8 rounded-full" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-400">
-                    {m.name?.[0]?.toUpperCase() ?? '?'}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
-                  <p className="text-xs text-gray-400 truncate">{m.email}</p>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-xs font-medium text-gray-400">People</h4>
+        </div>
+
+        <div className="space-y-1.5">
+          {/* Active members */}
+          {members.map((m) => (
+            <div key={m.id} className="flex items-center gap-3 py-1">
+              {m.image ? (
+                <img src={m.image} alt="" className="w-7 h-7 rounded-full" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-medium text-gray-400">
+                  {m.name?.[0]?.toUpperCase() ?? '?'}
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors"
-                    onClick={() => setResetTarget(m)}
-                  >
-                    Reset Password
-                  </button>
-                  <button
-                    className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
-                    onClick={() => setDeleteTarget(m)}
-                  >
-                    Remove
-                  </button>
-                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{m.name}</p>
+                <p className="text-xs text-gray-400 truncate">{m.email}</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  className="text-[10px] text-gray-400 hover:text-amber-600 font-medium px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors"
+                  onClick={() => setResetTarget(m)}
+                  title="Reset password"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0110 0v4" />
+                  </svg>
+                </button>
+                <button
+                  className="text-[10px] text-gray-400 hover:text-red-600 font-medium px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
+                  onClick={() => setDeleteTarget(m)}
+                  title="Remove from company"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
 
-      {/* Templates */}
-      <TemplatesSection orgId={orgId} />
+          {/* Pending invites — shown inline with members */}
+          {pendingInvites.map((inv) => (
+            <div key={inv.id} className="flex items-center gap-3 py-1">
+              <div className="w-7 h-7 rounded-full bg-amber-50 flex items-center justify-center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-400">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                  <polyline points="22,6 12,13 2,6" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-500 truncate">
+                  {inv.name || inv.email}
+                </p>
+                {inv.name && (
+                  <p className="text-xs text-gray-300 truncate">{inv.email}</p>
+                )}
+              </div>
+              <button
+                className="text-[10px] text-amber-600 hover:text-amber-700 font-medium px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 transition-colors whitespace-nowrap"
+                onClick={() => copyLink(inv.code)}
+              >
+                {copiedCode === inv.code ? 'Copied!' : 'Copy invite link'}
+              </button>
+            </div>
+          ))}
 
-      {/* Invite */}
-      <div>
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Invite User</h4>
-        <form onSubmit={handleInvite} className="flex gap-2">
+          {/* Empty state */}
+          {members.length === 0 && pendingInvites.length === 0 && (
+            <p className="text-xs text-gray-400 py-1">No people yet. Send an invite below.</p>
+          )}
+        </div>
+
+        {/* Invite form — always visible at bottom of people list */}
+        <form onSubmit={handleInvite} className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
           <input
             type="text"
             value={inviteName}
             onChange={(e) => setInviteName(e.target.value)}
-            placeholder="Full name"
-            className="w-36 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            placeholder="Name"
+            className="w-28 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder:text-gray-300"
           />
           <input
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="user@company.com"
+            placeholder="Email address"
             required
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+            className="flex-1 px-2.5 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent placeholder:text-gray-300"
           />
           <button
             type="submit"
             disabled={inviting || !inviteEmail.trim()}
-            className="px-4 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors whitespace-nowrap"
+            className="px-3.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
-            {inviting ? 'Sending...' : 'Create Invite'}
+            {inviting ? 'Inviting...' : 'Invite'}
           </button>
         </form>
         {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
       </div>
 
-      {/* Pending invitations */}
-      {invitations.length > 0 && (
-        <div>
-          <h4 className="text-xs font-medium text-gray-400 mb-2">Invitations</h4>
-          <div className="space-y-1.5">
-            {invitations.map((inv) => (
-              <div key={inv.id} className="flex items-center gap-3 text-sm">
-                <span className={`flex-1 ${inv.used_at ? 'text-gray-300 line-through' : 'text-gray-600'}`}>
-                  {inv.email}
-                </span>
-                {inv.used_at ? (
-                  <span className="text-[10px] text-green-500 uppercase font-medium">Accepted</span>
-                ) : (
-                  <button
-                    className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase"
-                    onClick={() => copyLink(inv.code)}
-                  >
-                    {copiedCode === inv.code ? 'Copied!' : 'Copy Link'}
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Templates */}
+      <TemplatesSection orgId={orgId} />
 
       {/* Reset Password Modal */}
       {resetTarget && (
@@ -621,7 +631,7 @@ function RemoveMemberModal({
 /* ------------------------------------------------------------------ */
 
 function TemplatesSection({ orgId }: { orgId: string }) {
-  const [assigned, setAssigned] = useState<CompanyTemplateRow[]>([]);
+  const [assigned, setAssigned] = useState<CompanyTemplate[]>([]);
   const [allTemplates, setAllTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -633,12 +643,12 @@ function TemplatesSection({ orgId }: { orgId: string }) {
 
   useEffect(() => {
     Promise.all([
-      apiCompanyTemplates.list(orgId),
+      adminApi.listCompanyTemplates(orgId),
       adminApi.listTemplates(),
     ]).then(([assignedList, templatesList]) => {
       setAssigned(assignedList);
       setAllTemplates(templatesList);
-    }).catch(() => {})
+    }).catch((err) => console.error('Failed to load templates:', err))
       .finally(() => setLoading(false));
   }, [orgId]);
 
@@ -649,7 +659,7 @@ function TemplatesSection({ orgId }: { orgId: string }) {
     if (!addTemplateId || !addDisplayName.trim()) return;
     setSaving(true);
     try {
-      const row = await apiCompanyTemplates.create({
+      const row = await adminApi.assignCompanyTemplate({
         organization_id: orgId,
         template_id: addTemplateId,
         display_name: addDisplayName.trim(),
@@ -666,13 +676,13 @@ function TemplatesSection({ orgId }: { orgId: string }) {
     }
   };
 
-  const handleSaveDisplayName = async (row: CompanyTemplateRow) => {
+  const handleSaveDisplayName = async (row: CompanyTemplate) => {
     if (!editName.trim() || editName.trim() === row.display_name) {
       setEditingId(null);
       return;
     }
     try {
-      const updated = await apiCompanyTemplates.update(row.id, { display_name: editName.trim() });
+      const updated = await adminApi.updateCompanyTemplate(row.id, editName.trim());
       setAssigned((prev) => prev.map((t) => (t.id === row.id ? updated : t)));
     } catch {
       // silently fail
@@ -682,7 +692,7 @@ function TemplatesSection({ orgId }: { orgId: string }) {
 
   const handleRemove = async (id: string) => {
     try {
-      await apiCompanyTemplates.delete(id);
+      await adminApi.removeCompanyTemplate(id);
       setAssigned((prev) => prev.filter((t) => t.id !== id));
     } catch {
       // silently fail
@@ -1016,7 +1026,7 @@ function TemplatesTab() {
                           {hasCode ? 'Ready' : 'In Development'}
                         </span>
                         <span className="text-[10px] text-gray-300">
-                          {tpl.usage_count} company{tpl.usage_count !== 1 ? 'ies' : ''}
+                          {tpl.usage_count} {tpl.usage_count === 1 ? 'company' : 'companies'}
                         </span>
                         <span className="text-[10px] text-gray-300">
                           ID: {tpl.id}
