@@ -32,17 +32,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const { name } = req.body ?? {};
+      const { name, description } = req.body ?? {};
       if (!name?.trim()) {
         return res.status(400).json({ error: 'Template name is required' });
       }
 
       const id = randomBytes(8).toString('hex');
       const now = new Date().toISOString();
+      const desc = (description ?? '').trim();
 
       const [row] = await sql`
         INSERT INTO public.templates (id, name, description, created_at, updated_at)
-        VALUES (${id}, ${name.trim()}, '', ${now}, ${now})
+        VALUES (${id}, ${name.trim()}, ${desc}, ${now}, ${now})
         RETURNING id, name, description, created_at, updated_at
       `;
 

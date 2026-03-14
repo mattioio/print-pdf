@@ -122,10 +122,10 @@ export const adminApi = {
   listTemplates: () =>
     adminFetch<Template[]>('/api/admin/templates'),
 
-  createTemplate: (name: string) =>
+  createTemplate: (name: string, description?: string) =>
     adminFetch<Template>('/api/admin/templates', {
       method: 'POST',
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...(description !== undefined && { description }) }),
     }),
 
   updateTemplate: (id: string, data: { name?: string; description?: string }) =>

@@ -99,7 +99,7 @@ function AppRoutes() {
   return (
     <>
       {route.page === 'admin' ? (
-        <Admin onBack={handleBack} />
+        <Admin onBack={handleBack} onPreviewTemplate={handleEdit} />
       ) : route.page === 'editor' ? (
         <BrochureProvider initial={route.data} key={route.data.id}>
           <Editor
