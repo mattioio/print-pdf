@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react'
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { BrochureProvider } from './context/BrochureContext';
+import { apiBrochures, apiCompanySettings, apiCompanyAgents } from './lib/api';
+import { rowToBrochure } from './lib/convert';
 import Login from './pages/Login';
 import ToastStack from './components/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -22,46 +24,138 @@ const PageSpinner = (
   </div>
 );
 
+/* ------------------------------------------------------------------ */
+/*  URL-based routing                                                  */
+/* ------------------------------------------------------------------ */
+
 type Route =
   | { page: 'dashboard' }
-  | { page: 'editor'; data: BrochureData }
+  | { page: 'editor'; id: string }
   | { page: 'admin' };
+
+function parseRoute(): Route {
+  const path = window.location.pathname;
+  const editorMatch = path.match(/^\/editor\/(.+)$/);
+  if (editorMatch) return { page: 'editor', id: editorMatch[1] };
+  if (path === '/admin') return { page: 'admin' };
+  return { page: 'dashboard' };
+}
+
+function navigateTo(path: string) {
+  history.pushState(null, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Not-found fallback for invalid brochure IDs                        */
+/* ------------------------------------------------------------------ */
+
+function NotFoundCard({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="bg-white rounded-xl border border-gray-200 p-8 text-center max-w-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">Brochure not found</h2>
+        <p className="text-sm text-gray-500 mb-4">This brochure may have been deleted or the link is invalid.</p>
+        <button
+          onClick={onBack}
+          className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  App routes                                                         */
+/* ------------------------------------------------------------------ */
 
 function AppRoutes() {
   const { user, organization, mustChangePassword, loading, refreshSession } = useAuth();
   const { toast } = useToast();
-  const [route, setRoute] = useState<Route>({ page: 'dashboard' });
+  const [route, setRoute] = useState<Route>(parseRoute);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsRevision, setSettingsRevision] = useState(0);
+
+  // Async editor data (loaded from API when navigating to /editor/:id)
+  const [editorData, setEditorData] = useState<BrochureData | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
+  const [editorError, setEditorError] = useState(false);
+
+  const orgId = organization?.id ?? '';
 
   // When org changes (admin switching companies), go back to dashboard
   const prevOrgRef = useRef(organization?.id);
   useEffect(() => {
     if (prevOrgRef.current && organization?.id && prevOrgRef.current !== organization.id) {
-      setRoute({ page: 'dashboard' });
+      navigateTo('/');
       setSettingsOpen(false);
     }
     prevOrgRef.current = organization?.id;
   }, [organization?.id]);
 
+  // Load brochure data when route is editor
+  useEffect(() => {
+    if (route.page !== 'editor') {
+      setEditorData(null);
+      setEditorError(false);
+      return;
+    }
+    // Skip fetch if data already pre-loaded (navigated from Dashboard)
+    if (editorData?.id === route.id) return;
+    if (!orgId) return;
+
+    let cancelled = false;
+    setEditorLoading(true);
+    setEditorError(false);
+
+    (async () => {
+      const row = await apiBrochures.get(route.id);
+      if (!row) {
+        if (!cancelled) {
+          setEditorError(true);
+          setEditorLoading(false);
+        }
+        return;
+      }
+      if (cancelled) return;
+      const [settings, agents] = await Promise.all([
+        apiCompanySettings.get(orgId),
+        apiCompanyAgents.list(orgId),
+      ]);
+      if (cancelled) return;
+      const brochure = rowToBrochure(row, settings, agents);
+      setEditorData(brochure);
+      setEditorLoading(false);
+    })().catch(() => {
+      if (!cancelled) {
+        setEditorError(true);
+        setEditorLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.page, route.page === 'editor' ? (route as { id: string }).id : null, orgId]);
+
   const handleEdit = useCallback((data: BrochureData) => {
-    history.pushState({ page: 'editor' }, '', '');
-    setRoute({ page: 'editor', data });
+    setEditorData(data); // pre-fill to avoid redundant fetch
+    navigateTo(`/editor/${data.id}`);
   }, []);
 
   const handleAdmin = useCallback(() => {
-    history.pushState({ page: 'admin' }, '', '');
-    setRoute({ page: 'admin' });
+    navigateTo('/admin');
   }, []);
 
   const handleBack = useCallback(() => {
-    setRoute({ page: 'dashboard' });
+    navigateTo('/');
   }, []);
 
-  // Browser back button support
+  // Browser back/forward button support
   useEffect(() => {
     const onPopState = () => {
-      setRoute({ page: 'dashboard' });
+      setRoute(parseRoute());
       setSettingsOpen(false);
     };
     window.addEventListener('popstate', onPopState);
@@ -124,15 +218,19 @@ function AppRoutes() {
         {route.page === 'admin' ? (
           <Admin onBack={handleBack} />
         ) : route.page === 'editor' ? (
-          <ErrorBoundary key={route.data.id}>
-            <BrochureProvider initial={route.data} onSaveError={() => toast("Changes couldn't be saved", 'error')}>
-              <Editor
-                onBack={handleBack}
-                onSettings={() => setSettingsOpen(true)}
-                settingsRevision={settingsRevision}
-              />
-            </BrochureProvider>
-          </ErrorBoundary>
+          editorLoading ? PageSpinner :
+          editorError ? <NotFoundCard onBack={handleBack} /> :
+          editorData ? (
+            <ErrorBoundary key={editorData.id}>
+              <BrochureProvider initial={editorData} onSaveError={() => toast("Changes couldn't be saved", 'error')}>
+                <Editor
+                  onBack={handleBack}
+                  onSettings={() => setSettingsOpen(true)}
+                  settingsRevision={settingsRevision}
+                />
+              </BrochureProvider>
+            </ErrorBoundary>
+          ) : PageSpinner
         ) : (
           <Dashboard
             onEdit={handleEdit}
