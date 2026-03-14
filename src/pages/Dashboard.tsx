@@ -32,7 +32,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
   const [templatePicker, setTemplatePicker] = useState<CompanyTemplate[] | null>(null);
   const [hasTemplates, setHasTemplates] = useState(true);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'edited'>('newest');
 
   const orgId = organization?.id ?? '';
 
@@ -198,9 +198,9 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
 
     // Sort
     return [...result].sort((a, b) => {
-      if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
-      if (sortBy === 'oldest') return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(); // newest
+      if (sortBy === 'edited') return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      if (sortBy === 'oldest') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime(); // newest
     });
   }, [rows, search, sortBy]);
 
@@ -219,7 +219,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
               {companyName || organization?.name || 'Brochure Builder'}
             </span>
             <span className="text-[11px] text-gray-400 font-normal">
-              Brochure creator
+              Document designer
             </span>
           </div>
 
@@ -288,7 +288,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                   disabled={!hasTemplates}
                   title={hasTemplates ? undefined : 'No templates assigned to this company'}
                 >
-                  New Brochure
+                  New Document
                 </button>
               </div>
 
@@ -314,7 +314,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                 >
                   <option value="newest">Newest first</option>
                   <option value="oldest">Oldest first</option>
-                  <option value="name">Name A–Z</option>
+                  <option value="edited">Recently edited</option>
                 </select>
               </div>
 

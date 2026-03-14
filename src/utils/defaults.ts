@@ -19,7 +19,7 @@ export function createDefaultBrochureForOrg(
   return {
     // Base fields
     id: uuid(),
-    name: 'New Brochure',
+    name: 'New Document',
     createdAt: now,
     updatedAt: now,
     templateId: template.id,

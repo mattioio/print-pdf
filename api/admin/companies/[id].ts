@@ -2,8 +2,9 @@ import { randomBytes } from 'crypto';
 import { withAdmin } from '../../_lib/auth';
 
 /**
- * GET  /api/admin/companies/:id — list members for a company
- * POST /api/admin/companies/:id — create an invitation for a company
+ * GET   /api/admin/companies/:id — list members, invitations, settings, agents
+ * POST  /api/admin/companies/:id — create an invitation for a company
+ * PATCH /api/admin/companies/:id — update company settings + agents
  */
 export default withAdmin(async (req, res, session, sql) => {
   const orgId = req.query.id as string;
@@ -28,7 +29,29 @@ export default withAdmin(async (req, res, session, sql) => {
       ORDER BY created_at DESC
     `;
 
-    return res.status(200).json({ members, invitations });
+    // Company settings
+    const settingsRows = await sql`
+      SELECT agency_name, tagline, logo_url, address, telephone, fax, website,
+             accent_color, text_color, title_font, body_font, template_id
+      FROM public.company_settings
+      WHERE organization_id = ${orgId}
+      LIMIT 1
+    `;
+
+    // Company agents
+    const agents = await sql`
+      SELECT id, name, email, sort_order
+      FROM public.company_agents
+      WHERE organization_id = ${orgId}
+      ORDER BY sort_order
+    `;
+
+    return res.status(200).json({
+      members,
+      invitations,
+      settings: settingsRows[0] ?? null,
+      agents,
+    });
   }
 
   if (req.method === 'POST') {
@@ -47,6 +70,58 @@ export default withAdmin(async (req, res, session, sql) => {
     `;
 
     return res.status(201).json(invite);
+  }
+
+  if (req.method === 'PATCH') {
+    // Update company settings + agents
+    const { settings, agents } = req.body ?? {};
+
+    if (settings) {
+      const s = settings;
+      const now = new Date().toISOString();
+
+      // Upsert company_settings (unique on organization_id)
+      await sql`
+        INSERT INTO public.company_settings (organization_id, agency_name, tagline, logo_url, address, telephone, fax, website, accent_color, text_color, title_font, body_font, updated_at)
+        VALUES (${orgId}, ${s.agency_name ?? ''}, ${s.tagline ?? ''}, ${s.logo_url ?? ''}, ${s.address ?? ''}, ${s.telephone ?? ''}, ${s.fax ?? ''}, ${s.website ?? ''}, ${s.accent_color ?? '#f3b229'}, ${s.text_color ?? '#1a1a1a'}, ${s.title_font ?? 'Playfair Display'}, ${s.body_font ?? 'Montserrat'}, ${now})
+        ON CONFLICT (organization_id) DO UPDATE SET
+          agency_name = EXCLUDED.agency_name,
+          tagline = EXCLUDED.tagline,
+          logo_url = EXCLUDED.logo_url,
+          address = EXCLUDED.address,
+          telephone = EXCLUDED.telephone,
+          fax = EXCLUDED.fax,
+          website = EXCLUDED.website,
+          accent_color = EXCLUDED.accent_color,
+          text_color = EXCLUDED.text_color,
+          title_font = EXCLUDED.title_font,
+          body_font = EXCLUDED.body_font,
+          updated_at = EXCLUDED.updated_at
+      `;
+
+      // Sync org display name
+      if (s.agency_name?.trim()) {
+        await sql`
+          UPDATE neon_auth.organization SET name = ${s.agency_name.trim()} WHERE id = ${orgId}
+        `.catch(() => {});
+      }
+    }
+
+    if (agents !== undefined) {
+      // Replace all agents
+      await sql`DELETE FROM public.company_agents WHERE organization_id = ${orgId}`;
+      if (Array.isArray(agents) && agents.length > 0) {
+        for (let i = 0; i < agents.length; i++) {
+          const a = agents[i];
+          await sql`
+            INSERT INTO public.company_agents (organization_id, name, email, sort_order)
+            VALUES (${orgId}, ${a.name ?? ''}, ${a.email ?? ''}, ${i})
+          `;
+        }
+      }
+    }
+
+    return res.status(200).json({ ok: true });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });

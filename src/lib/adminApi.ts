@@ -83,6 +83,25 @@ export interface CompanyTemplate {
   created_at: string;
 }
 
+export interface AdminCompanySettings {
+  agency_name: string;
+  tagline: string;
+  logo_url: string;
+  address: string;
+  telephone: string;
+  fax: string;
+  website: string;
+  accent_color: string;
+  text_color: string;
+  title_font: string;
+  body_font: string;
+}
+
+export interface AdminCompanyAgent {
+  name: string;
+  email: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  API methods                                                        */
 /* ------------------------------------------------------------------ */
@@ -97,10 +116,16 @@ export const adminApi = {
       body: JSON.stringify({ name }),
     }),
 
-  getCompanyMembers: (orgId: string) =>
-    adminFetch<{ members: Member[]; invitations: Invitation[] }>(
+  getCompanyDetails: (orgId: string) =>
+    adminFetch<{ members: Member[]; invitations: Invitation[]; settings: AdminCompanySettings | null; agents: AdminCompanyAgent[] }>(
       `/api/admin/companies/${orgId}`,
     ),
+
+  updateCompanySettings: (orgId: string, settings: AdminCompanySettings, agents: AdminCompanyAgent[]) =>
+    adminFetch<{ ok: boolean }>(`/api/admin/companies/${orgId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ settings, agents }),
+    }),
 
   inviteUser: (orgId: string, email: string, name?: string) =>
     adminFetch<Invitation>(`/api/admin/companies/${orgId}`, {

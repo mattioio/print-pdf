@@ -11,7 +11,7 @@ export function createDefaultBrochure(): BrochureData {
   const settings = loadAgencySettings();
   return {
     id: uuid(),
-    name: 'New Brochure',
+    name: 'New Document',
     createdAt: now,
     updatedAt: now,
     templateId: 'classic',
