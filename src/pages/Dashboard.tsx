@@ -283,13 +283,23 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                         {b.property_address && (
                           <p className="text-sm text-gray-400 mt-0.5 truncate">{b.property_address}</p>
                         )}
-                        <p className="text-xs text-gray-300 mt-1">
-                          {new Date(b.updated_at).toLocaleDateString('en-GB', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-gray-300">
+                            {new Date(b.updated_at).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                          {b.template_id && (
+                            <>
+                              <span className="text-xs text-gray-200">·</span>
+                              <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+                                {templates[b.template_id]?.name ?? b.template_id}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <button
