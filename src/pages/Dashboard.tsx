@@ -281,7 +281,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
             <>
               {/* Section header */}
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-gray-400">My brochures</h2>
+                <h2 className="text-sm font-medium text-gray-400">My documents</h2>
                 <button
                   className={`px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors ${hasTemplates ? 'bg-amber-500 hover:bg-amber-600' : 'bg-gray-300 cursor-not-allowed'}`}
                   onClick={handleNew}

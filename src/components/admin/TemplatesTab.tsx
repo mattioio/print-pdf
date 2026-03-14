@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { adminApi, type Template } from '../../lib/adminApi';
 import ActionButton from '../ActionButton';
+import SlidePanel from './SlidePanel';
 
 export default function TemplatesTab() {
   const { toast } = useToast();
@@ -10,9 +11,7 @@ export default function TemplatesTab() {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editField, setEditField] = useState<'name' | 'display_name' | 'description'>('name');
-  const [editValue, setEditValue] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
   const reload = useCallback(async () => {
@@ -46,21 +45,6 @@ export default function TemplatesTab() {
     }
   };
 
-  const handleSaveEdit = async (tpl: Template) => {
-    const current = editField === 'name' ? tpl.name : editField === 'display_name' ? tpl.display_name : tpl.description;
-    if (!editValue.trim() || editValue.trim() === current) {
-      setEditingId(null);
-      return;
-    }
-    try {
-      const updated = await adminApi.updateTemplate(tpl.id, { [editField]: editValue.trim() });
-      setTpls((prev) => prev.map((t) => (t.id === tpl.id ? { ...t, ...updated } : t)));
-    } catch {
-      // silently fail
-    }
-    setEditingId(null);
-  };
-
   const handleToggleStatus = async (tpl: Template) => {
     const newStatus = tpl.status === 'published' ? 'draft' : 'published';
     try {
@@ -76,6 +60,7 @@ export default function TemplatesTab() {
     try {
       await adminApi.deleteTemplate(tpl.id);
       setTpls((prev) => prev.filter((t) => t.id !== tpl.id));
+      if (selectedId === tpl.id) setSelectedId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete template');
     }
@@ -89,6 +74,12 @@ export default function TemplatesTab() {
       setError(err instanceof Error ? err.message : 'Failed to duplicate template');
     }
   };
+
+  const handleFieldUpdate = useCallback((id: string, updates: Partial<Template>) => {
+    setTpls((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+  }, []);
+
+  const selectedTpl = tpls.find((t) => t.id === selectedId) ?? null;
 
   if (loading) {
     return (
@@ -157,100 +148,18 @@ export default function TemplatesTab() {
             {tpls.map((tpl) => {
               const isPublished = tpl.status === 'published';
               return (
-                <div key={tpl.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
-                  <div className="flex items-start gap-4">
+                <div
+                  key={tpl.id}
+                  className="bg-white rounded-xl border border-gray-200 px-5 py-4 cursor-pointer hover:border-gray-300 hover:shadow-sm transition-all group"
+                  onClick={() => setSelectedId(tpl.id)}
+                >
+                  <div className="flex items-center gap-4">
                     <div className="flex-1 min-w-0">
-                      {/* Internal name */}
-                      {editingId === tpl.id && editField === 'name' ? (
-                        <input
-                          type="text"
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={() => handleSaveEdit(tpl)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveEdit(tpl);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                          autoFocus
-                          className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-sm font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                        />
-                      ) : (
-                        <h3
-                          className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-amber-600 transition-colors"
-                          onClick={() => {
-                            setEditingId(tpl.id);
-                            setEditField('name');
-                            setEditValue(tpl.name);
-                          }}
-                        >
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold text-gray-900 truncate">
                           {tpl.name}
                         </h3>
-                      )}
-
-                      {/* Display name + description in a row */}
-                      <div className="flex items-start gap-6 mt-1.5">
-                        <div className="min-w-0">
-                          <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Display name</label>
-                          {editingId === tpl.id && editField === 'display_name' ? (
-                            <input
-                              type="text"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleSaveEdit(tpl)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveEdit(tpl);
-                                if (e.key === 'Escape') setEditingId(null);
-                              }}
-                              autoFocus
-                              className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            />
-                          ) : (
-                            <p
-                              className="text-xs text-gray-600 cursor-pointer hover:text-amber-600 transition-colors"
-                              onClick={() => {
-                                setEditingId(tpl.id);
-                                setEditField('display_name');
-                                setEditValue(tpl.display_name);
-                              }}
-                            >
-                              {tpl.display_name || tpl.name}
-                            </p>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <label className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">Description</label>
-                          {editingId === tpl.id && editField === 'description' ? (
-                            <input
-                              type="text"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleSaveEdit(tpl)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSaveEdit(tpl);
-                                if (e.key === 'Escape') setEditingId(null);
-                              }}
-                              autoFocus
-                              className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
-                              placeholder="Add a description..."
-                            />
-                          ) : (
-                            <p
-                              className="text-xs text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
-                              onClick={() => {
-                                setEditingId(tpl.id);
-                                setEditField('description');
-                                setEditValue(tpl.description);
-                              }}
-                            >
-                              {tpl.description || 'Click to add...'}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Meta */}
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 ${
                           isPublished
                             ? 'bg-green-50 text-green-700'
                             : 'bg-amber-50 text-amber-700'
@@ -258,11 +167,19 @@ export default function TemplatesTab() {
                           <span className={`w-1.5 h-1.5 rounded-full ${isPublished ? 'bg-green-500' : 'bg-amber-500'}`} />
                           {isPublished ? 'Published' : 'Draft'}
                         </span>
-                        <span className="text-[10px] text-gray-300">
+                      </div>
+                      {tpl.display_name && tpl.display_name !== tpl.name && (
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">{tpl.display_name}</p>
+                      )}
+                      {tpl.description && (
+                        <p className="text-xs text-gray-400 mt-0.5 truncate">{tpl.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 2v12l4-3 4 3V2H4z" />
+                          </svg>
                           {tpl.usage_count} {tpl.usage_count === 1 ? 'company' : 'companies'}
-                        </span>
-                        <span className="text-[10px] text-gray-300">
-                          ID: {tpl.id}
                         </span>
                       </div>
                     </div>
@@ -272,7 +189,7 @@ export default function TemplatesTab() {
                       <ActionButton
                         label={isPublished ? 'Unpublish' : 'Publish'}
                         hoverColor={isPublished ? 'hover:bg-amber-500' : 'hover:bg-green-600'}
-                        onClick={() => handleToggleStatus(tpl)}
+                        onClick={(e) => { e.stopPropagation(); handleToggleStatus(tpl); }}
                         title={isPublished ? 'Revert to draft — users won\'t see this template' : 'Publish — users can see this template'}
                         icon={
                           isPublished ? (
@@ -291,7 +208,7 @@ export default function TemplatesTab() {
                       />
                       <ActionButton
                         label="Duplicate"
-                        onClick={() => handleDuplicate(tpl)}
+                        onClick={(e) => { e.stopPropagation(); handleDuplicate(tpl); }}
                         title="Duplicate template"
                         icon={
                           <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -303,7 +220,7 @@ export default function TemplatesTab() {
                       <ActionButton
                         label="Delete"
                         hoverColor="hover:bg-red-600"
-                        onClick={() => handleDelete(tpl)}
+                        onClick={(e) => { e.stopPropagation(); handleDelete(tpl); }}
                         disabled={tpl.usage_count > 0}
                         title={tpl.usage_count > 0 ? `Assigned to ${tpl.usage_count} ${tpl.usage_count === 1 ? 'company' : 'companies'}` : 'Delete template'}
                         icon={
@@ -314,6 +231,14 @@ export default function TemplatesTab() {
                         }
                       />
                     </div>
+
+                    {/* Chevron */}
+                    <svg
+                      width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+                      className="text-gray-300 group-hover:text-gray-400 transition-colors shrink-0"
+                    >
+                      <polyline points="5 3 9 7 5 11" />
+                    </svg>
                   </div>
                 </div>
               );
@@ -321,6 +246,115 @@ export default function TemplatesTab() {
           </div>
         )}
       </section>
+
+      {/* Edit panel */}
+      <SlidePanel
+        open={!!selectedTpl}
+        onClose={() => setSelectedId(null)}
+        title={selectedTpl?.name ?? 'Template'}
+      >
+        {selectedTpl && (
+          <TemplateEditForm
+            key={selectedTpl.id}
+            template={selectedTpl}
+            onUpdate={handleFieldUpdate}
+          />
+        )}
+      </SlidePanel>
     </>
+  );
+}
+
+/* ---- Template Edit Form (inside panel) ---- */
+
+function TemplateEditForm({
+  template,
+  onUpdate,
+}: {
+  template: Template;
+  onUpdate: (id: string, updates: Partial<Template>) => void;
+}) {
+  const { toast } = useToast();
+  const [name, setName] = useState(template.name);
+  const [displayName, setDisplayName] = useState(template.display_name);
+  const [description, setDescription] = useState(template.description);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const loadedRef = useRef(false);
+
+  // Mark as loaded after initial mount
+  useEffect(() => {
+    loadedRef.current = true;
+  }, []);
+
+  // Auto-save (debounced 500ms)
+  useEffect(() => {
+    if (!loadedRef.current) return;
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        const updated = await adminApi.updateTemplate(template.id, {
+          name: name.trim() || template.name,
+          display_name: displayName.trim(),
+          description: description.trim(),
+        });
+        onUpdate(template.id, updated);
+      } catch {
+        toast("Couldn't save changes", 'error');
+      }
+    }, 500);
+    return () => clearTimeout(saveTimer.current);
+  }, [name, displayName, description]);
+
+  const inputClass =
+    'w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none';
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Internal Name</label>
+        <input
+          className={inputClass}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Template name"
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Display Name</label>
+        <input
+          className={inputClass}
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="Shown to users"
+        />
+        <p className="text-[10px] text-gray-400 mt-1">The name users see when selecting this template.</p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+        <textarea
+          className={inputClass + ' resize-y'}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Brief description of this template..."
+          rows={3}
+        />
+      </div>
+
+      {/* Status info */}
+      <div className="border-t border-gray-100 pt-4">
+        <label className="block text-xs font-medium text-gray-500 mb-2">Info</label>
+        <div className="space-y-1.5 text-xs text-gray-400">
+          <p>Status: <span className={template.status === 'published' ? 'text-green-600 font-medium' : 'text-amber-600 font-medium'}>{template.status === 'published' ? 'Published' : 'Draft'}</span></p>
+          <p>Used by {template.usage_count} {template.usage_count === 1 ? 'company' : 'companies'}</p>
+          <p className="font-mono text-[10px] text-gray-300">ID: {template.id}</p>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-gray-300 pt-1">
+        Changes are saved automatically.
+      </p>
+    </div>
   );
 }

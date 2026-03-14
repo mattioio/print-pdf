@@ -188,7 +188,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 h-14 border-b border-gray-200 shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900">Agency Settings</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Business Settings</h2>
           <button
             className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
             onClick={onClose}
@@ -309,46 +309,73 @@ export default function Settings({ open, onClose }: SettingsProps) {
           <div className="border-t border-gray-200 pt-6">
             <div className="flex items-center justify-between mb-1">
               <h3 className="text-base font-semibold text-gray-900">Agents</h3>
-              <button
-                className="text-xs text-amber-600 hover:text-amber-700 font-medium"
-                onClick={addAgent}
-              >
-                + Add Agent
-              </button>
+              <span className="text-xs text-gray-400">{settings.agents.length} {settings.agents.length === 1 ? 'agent' : 'agents'}</span>
             </div>
             <p className="text-sm text-gray-500 mb-4">
-              Manage your team. Pick which agents to list on each brochure.
+              Manage your team. Pick which agents to list on each document.
             </p>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {settings.agents.map((agent, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                  <input
-                    className={inputClass + ' !w-auto flex-1'}
-                    value={agent.name}
-                    onChange={(e) => updateAgent(i, 'name', e.target.value)}
-                    placeholder="Name"
-                  />
-                  <input
-                    className={inputClass + ' !w-auto flex-1'}
-                    value={agent.email}
-                    onChange={(e) => updateAgent(i, 'email', e.target.value)}
-                    placeholder="Email"
-                  />
-                  <button
-                    className="text-gray-300 hover:text-red-500 text-sm transition-colors px-1"
-                    onClick={() => removeAgent(i)}
-                    title="Remove agent"
-                  >
-                    ×
-                  </button>
+                <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg p-3 group hover:border-gray-300 transition-colors">
+                  <div className="flex items-start gap-3">
+                    {/* Avatar */}
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
+                      {agent.name ? agent.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <input
+                        className={inputClass}
+                        value={agent.name}
+                        onChange={(e) => updateAgent(i, 'name', e.target.value)}
+                        placeholder="Full name"
+                      />
+                      <div className="flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 shrink-0">
+                          <rect x="1.5" y="3.5" width="13" height="9" rx="1.5" />
+                          <path d="M1.5 5l6.5 4 6.5-4" />
+                        </svg>
+                        <input
+                          className={inputClass}
+                          value={agent.email}
+                          onChange={(e) => updateAgent(i, 'email', e.target.value)}
+                          placeholder="email@company.com"
+                          type="email"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      className="p-1 rounded-md text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                      onClick={() => removeAgent(i)}
+                      title="Remove agent"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
+                        <path d="M6.5 7v4M9.5 7v4" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               ))}
               {settings.agents.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  No agents yet. Click "+ Add Agent" to add your first team member.
-                </p>
+                <div className="border-2 border-dashed border-gray-200 rounded-lg py-6 text-center">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 mx-auto mb-2">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M5 20c0-3.87 3.13-7 7-7s7 3.13 7 7" />
+                  </svg>
+                  <p className="text-sm text-gray-400">No agents yet</p>
+                  <p className="text-xs text-gray-300 mt-0.5">Add team members who will appear on documents</p>
+                </div>
               )}
             </div>
+            <button
+              className="mt-3 w-full py-2 border border-dashed border-gray-300 rounded-lg text-sm text-gray-400 hover:text-amber-600 hover:border-amber-300 hover:bg-amber-50/50 transition-colors flex items-center justify-center gap-1.5"
+              onClick={addAgent}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M8 3v10M3 8h10" />
+              </svg>
+              Add agent
+            </button>
           </div>
 
           {/* Branding */}

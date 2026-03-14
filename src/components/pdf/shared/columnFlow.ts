@@ -125,7 +125,7 @@ function measureBlock(block: ContentBlock): number {
 
 function generateAccommodationDescription(floors: string[]): string {
   if (floors.length === 0) return '';
-  const suffix = 'and has the following approximate net internal areas:';
+  const suffix = 'with the following approximate net internal areas:';
   if (floors.length === 1) {
     return `The unit is arranged over the ${floors[0]} only ${suffix}`;
   }
