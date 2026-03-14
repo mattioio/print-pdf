@@ -130,7 +130,7 @@ function generateAccommodationDescription(floors: string[]): string {
     return `The unit is arranged over the ${floors[0]} only ${suffix}`;
   }
   const list = floors.slice(0, -1).join(', ') + ' and ' + floors[floors.length - 1];
-  return `The unit is arranged over ${list} floors ${suffix}`;
+  return `The unit is arranged over ${list} ${suffix}`;
 }
 
 /* ═══════════════ Content stream builder ═══════════════ */

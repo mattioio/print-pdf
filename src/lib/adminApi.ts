@@ -53,9 +53,13 @@ export interface Member {
   createdAt: string;
 }
 
-export interface CreatedUser {
+export interface Invitation {
   id: string;
+  code: string;
   email: string;
+  name: string | null;
+  created_at: string;
+  used_at: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,14 +77,20 @@ export const adminApi = {
     }),
 
   getCompanyMembers: (orgId: string) =>
-    adminFetch<{ members: Member[] }>(
+    adminFetch<{ members: Member[]; invitations: Invitation[] }>(
       `/api/admin/companies/${orgId}`,
     ),
 
-  createUser: (orgId: string, email: string, password: string) =>
-    adminFetch<CreatedUser>(`/api/admin/companies/${orgId}`, {
+  inviteUser: (orgId: string, email: string, name?: string) =>
+    adminFetch<Invitation>(`/api/admin/companies/${orgId}`, {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, name }),
+    }),
+
+  resetPassword: (userId: string, password: string) =>
+    adminFetch<{ success: boolean }>('/api/admin/users/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ userId, password }),
     }),
 };
 
@@ -88,7 +98,7 @@ export const adminApi = {
 /*  Invite validation (public — no auth needed)                        */
 /* ------------------------------------------------------------------ */
 
-export async function validateInvite(code: string): Promise<{ email: string; orgName: string }> {
+export async function validateInvite(code: string): Promise<{ email: string; name: string | null; orgName: string }> {
   const res = await fetch(`/api/invite/${code}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: 'Invalid invite' }));
@@ -113,7 +123,7 @@ export async function acceptInvite(code: string): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
-/*  User flags & password change                                       */
+/*  User self-service (authenticated)                                  */
 /* ------------------------------------------------------------------ */
 
 export async function fetchUserFlags(): Promise<{ mustChangePassword: boolean }> {

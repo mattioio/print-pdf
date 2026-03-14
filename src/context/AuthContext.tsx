@@ -23,8 +23,9 @@ interface Organization {
 interface AuthState {
   user: User | null;
   organization: Organization | null;
-  loading: boolean;
+  organizations: Organization[];
   mustChangePassword: boolean;
+  loading: boolean;
 }
 
 interface AuthContextValue extends AuthState {
@@ -46,15 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
     organization: null,
-    loading: true,
+    organizations: [],
     mustChangePassword: false,
+    loading: true,
   });
 
   const refreshSession = useCallback(async () => {
     try {
       const { data } = await authClient.getSession();
       if (!data?.user) {
-        setState({ user: null, organization: null, loading: false, mustChangePassword: false });
+        setState({ user: null, organization: null, organizations: [], mustChangePassword: false, loading: false });
         return;
       }
 
@@ -76,9 +78,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Try to load active organization
       let org: Organization | null = null;
+      let allOrgs: Organization[] = [];
       try {
         const orgList = await authClient.organization.list();
         if (orgList.data && orgList.data.length > 0) {
+          allOrgs = orgList.data.map((o: { id: string; name: string; slug: string; logo?: string | null }) => ({
+            id: o.id,
+            name: o.name,
+            slug: o.slug,
+            logo: o.logo,
+          }));
+
           // Use the active org from session, or fall back to first org
           const activeOrgId = (data.session as Record<string, unknown>).activeOrganizationId as string | undefined;
           const activeOrg = activeOrgId
@@ -101,9 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // No orgs yet — that's fine
       }
 
-      setState({ user, organization: org, loading: false, mustChangePassword });
+      setState({ user, organization: org, organizations: allOrgs, mustChangePassword, loading: false });
     } catch {
-      setState({ user: null, organization: null, loading: false, mustChangePassword: false });
+      setState({ user: null, organization: null, organizations: [], mustChangePassword: false, loading: false });
     }
   }, []);
 
@@ -131,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await authClient.signOut();
-    setState({ user: null, organization: null, loading: false, mustChangePassword: false });
+    setState({ user: null, organization: null, organizations: [], mustChangePassword: false, loading: false });
   }, []);
 
   const createOrganization = useCallback(async (name: string): Promise<string> => {

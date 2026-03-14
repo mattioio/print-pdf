@@ -11,6 +11,7 @@ export default function InviteSignup({ code, onDone }: InviteSignupProps) {
   const { signUpWithEmail, refreshSession } = useAuth();
   const [orgName, setOrgName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,9 +23,13 @@ export default function InviteSignup({ code, onDone }: InviteSignupProps) {
   // Validate the invite code on mount
   useEffect(() => {
     validateInvite(code)
-      .then(({ email: e, orgName: o }) => {
+      .then(({ email: e, name: n, orgName: o }) => {
         setInviteEmail(e);
         setEmail(e);
+        if (n) {
+          setInviteName(n);
+          setName(n);
+        }
         setOrgName(o);
         setValidating(false);
       })
@@ -106,8 +111,9 @@ export default function InviteSignup({ code, onDone }: InviteSignupProps) {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
                 required
-                autoFocus
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                autoFocus={!inviteName}
+                readOnly={!!inviteName}
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent ${inviteName ? 'bg-gray-50 text-gray-500' : ''}`}
               />
             </div>
             <div>

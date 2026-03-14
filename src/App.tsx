@@ -17,7 +17,7 @@ type Route =
   | { page: 'admin' };
 
 function AppRoutes() {
-  const { user, organization, loading, mustChangePassword, refreshSession } = useAuth();
+  const { user, organization, mustChangePassword, loading, refreshSession } = useAuth();
   const [route, setRoute] = useState<Route>({ page: 'dashboard' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsRevision, setSettingsRevision] = useState(0);
@@ -59,7 +59,7 @@ function AppRoutes() {
     return <Login />;
   }
 
-  // Must change password before anything else
+  // Must change password (admin-reset flow)
   if (mustChangePassword) {
     return <ChangePassword onDone={() => refreshSession()} />;
   }
