@@ -379,7 +379,6 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                       <div className="flex items-center gap-2">
                         <ActionButton
                           label="Edit"
-                          hoverColor="hover:bg-amber-500"
                           onClick={(e) => { e.stopPropagation(); handleEdit(b); }}
                           icon={
                             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -399,7 +398,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                         />
                         <ActionButton
                           label="Delete"
-                          hoverColor="hover:bg-red-600"
+                          variant="danger"
                           onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: b.id, name: b.name }); }}
                           icon={
                             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
