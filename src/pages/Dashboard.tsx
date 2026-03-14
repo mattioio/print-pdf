@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { apiBrochures, apiCompanySettings, apiCompanyAgents, apiCompanyTemplates, type CompanyTemplateRow } from '../lib/api';
+import { apiBrochures, apiCompanySettings, apiCompanyAgents } from '../lib/api';
+import { fetchOrgTemplates, type CompanyTemplate } from '../lib/adminApi';
 import { rowToBrochure, settingsToClient } from '../lib/convert';
 import { createDefaultBrochureForOrg } from '../utils/defaults';
 import { templates } from '../components/pdf/templates';
@@ -23,7 +24,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
   const [companyName, setCompanyName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [templatePicker, setTemplatePicker] = useState<CompanyTemplateRow[] | null>(null);
+  const [templatePicker, setTemplatePicker] = useState<CompanyTemplate[] | null>(null);
 
   const orgId = organization?.id ?? '';
 
@@ -117,7 +118,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
   const handleNew = async () => {
     if (!orgId || !user) return;
     try {
-      const companyTemplates = await apiCompanyTemplates.list(orgId);
+      const companyTemplates = await fetchOrgTemplates();
       if (companyTemplates.length === 0) {
         // No templates assigned — fallback to classic
         await createBrochure('classic');
