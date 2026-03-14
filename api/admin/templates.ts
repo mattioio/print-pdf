@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { neon } from '@neondatabase/serverless';
+import { randomBytes } from 'crypto';
 import { verifySession, isAdminEmail } from '../_lib/auth';
 
 /**
@@ -36,7 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Template name is required' });
       }
 
-      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const id = randomBytes(8).toString('hex');
       const now = new Date().toISOString();
 
       const [row] = await sql`
