@@ -25,7 +25,12 @@ async function adminFetch<T = unknown>(
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Admin API ${res.status}: ${body}`);
+    let message = `Request failed (${res.status})`;
+    try {
+      const json = JSON.parse(body);
+      if (json.error) message = json.error;
+    } catch { /* use default */ }
+    throw new Error(message);
   }
   const text = await res.text();
   return text ? JSON.parse(text) : (undefined as T);

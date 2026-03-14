@@ -372,7 +372,16 @@ export default function CompanyDetail({ orgId, onAgencyNameChange, onDeleted }: 
               {inviting ? 'Inviting...' : 'Invite'}
             </button>
           </form>
-          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+          {error && (
+            <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-400 shrink-0">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p className="text-xs text-red-700">{error}</p>
+            </div>
+          )}
         </div>
       )}
 
