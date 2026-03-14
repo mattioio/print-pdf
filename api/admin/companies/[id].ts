@@ -100,10 +100,24 @@ export default withAdmin(async (req, res, session, sql) => {
   }
 
   if (req.method === 'DELETE') {
+    const { invitationId, deleteCompany } = req.body ?? {};
+
+    // Delete the entire company
+    if (deleteCompany) {
+      // Delete related data first
+      await sql`DELETE FROM public.company_agents WHERE organization_id = ${orgId}`;
+      await sql`DELETE FROM public.company_settings WHERE organization_id = ${orgId}`;
+      await sql`DELETE FROM public.company_templates WHERE organization_id = ${orgId}`;
+      await sql`DELETE FROM public.platform_invitations WHERE organization_id = ${orgId}`;
+      await sql`DELETE FROM public.brochures WHERE organization_id = ${orgId}`;
+      await sql`DELETE FROM neon_auth.member WHERE "organizationId" = ${orgId}`;
+      await sql`DELETE FROM neon_auth.organization WHERE id = ${orgId}`;
+      return res.status(200).json({ ok: true });
+    }
+
     // Revoke a pending invitation
-    const { invitationId } = req.body ?? {};
     if (!invitationId) {
-      return res.status(400).json({ error: 'invitationId is required' });
+      return res.status(400).json({ error: 'invitationId or deleteCompany is required' });
     }
 
     await sql`

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { adminApi, type Member, type Invitation, type AdminCompanySettings, type AdminCompanyAgent } from '../../lib/adminApi';
 import { useToast } from '../../context/ToastContext';
 import ResetPasswordModal from './ResetPasswordModal';
@@ -6,11 +6,11 @@ import RemoveMemberModal from './RemoveMemberModal';
 import TemplatesSection from './TemplatesSection';
 import CompanySettingsTab from './CompanySettingsTab';
 
-type DetailTab = 'people' | 'templates' | 'settings';
+type DetailTab = 'editors' | 'templates' | 'settings' | 'delete';
 
-export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: string; onAgencyNameChange?: (name: string) => void }) {
+export default function CompanyDetail({ orgId, onAgencyNameChange, onDeleted }: { orgId: string; onAgencyNameChange?: (name: string) => void; onDeleted?: () => void }) {
   const { toast } = useToast();
-  const [tab, setTab] = useState<DetailTab>('people');
+  const [tab, setTab] = useState<DetailTab>('editors');
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [initialSettings, setInitialSettings] = useState<AdminCompanySettings | null>(null);
@@ -24,6 +24,9 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
   const [resetTarget, setResetTarget] = useState<Member | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const nameTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const loadData = useCallback(async () => {
     try {
@@ -52,7 +55,6 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
       setInviteEmail('');
       setInviteName('');
       setInvitations((prev) => [invite, ...prev]);
-      // Copy invite link to clipboard
       const link = `${window.location.origin}?invite=${invite.code}`;
       await navigator.clipboard.writeText(link);
       setCopiedCode(invite.code);
@@ -80,6 +82,34 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
     }
   };
 
+  const handleNameChange = (memberId: string, name: string) => {
+    setEditName(name);
+    setMembers((prev) => prev.map((m) => (m.id === memberId ? { ...m, name } : m)));
+    clearTimeout(nameTimer.current);
+    nameTimer.current = setTimeout(() => {
+      adminApi.updateMemberName(memberId, name).catch(() => {
+        toast("Couldn't update name", 'error');
+      });
+    }, 500);
+  };
+
+  const handleDeleteCompany = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this company? This will permanently remove all members, documents, settings, and invitations. This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    setDeleting(true);
+    try {
+      await adminApi.deleteCompany(orgId);
+      toast('Company deleted', 'success');
+      onDeleted?.();
+    } catch {
+      toast('Failed to delete company', 'error');
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="px-5 pb-4 flex justify-center">
@@ -90,25 +120,34 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
 
   const pendingInvites = invitations.filter((inv) => !inv.used_at);
 
+  const inputClass =
+    'w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none';
+
   return (
     <div className="space-y-4">
       {/* Tab switcher */}
       <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
-        {(['people', 'templates', 'settings'] as const).map((t) => (
+        {(['editors', 'templates', 'settings', 'delete'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-              tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t
+                ? t === 'delete'
+                  ? 'bg-white text-red-600 shadow-sm'
+                  : 'bg-white text-gray-900 shadow-sm'
+                : t === 'delete'
+                  ? 'text-gray-400 hover:text-red-500'
+                  : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'people' ? 'People' : t === 'templates' ? 'Templates' : 'Settings'}
+            {t === 'editors' ? 'Editors' : t === 'templates' ? 'Templates' : t === 'settings' ? 'Settings' : 'Delete'}
           </button>
         ))}
       </div>
 
-      {/* People tab */}
-      {tab === 'people' && (
+      {/* Editors tab */}
+      {tab === 'editors' && (
         <div>
           <div className="space-y-2">
             {/* Active members */}
@@ -119,7 +158,14 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
                   {/* Card header */}
                   <div
                     className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50 transition-colors"
-                    onClick={() => setEditingId(isEditing ? null : m.id)}
+                    onClick={() => {
+                      if (isEditing) {
+                        setEditingId(null);
+                      } else {
+                        setEditingId(m.id);
+                        setEditName(m.name || '');
+                      }
+                    }}
                   >
                     {m.image ? (
                       <img src={m.image} alt="" className="w-8 h-8 rounded-full shrink-0" />
@@ -132,10 +178,17 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
                       <p className="text-sm font-medium text-gray-900 truncate">{m.name || 'Unnamed'}</p>
                       <p className="text-xs text-gray-400 truncate">{m.email}</p>
                     </div>
-                    {/* Edit button */}
                     <button
                       className="text-xs text-gray-400 hover:text-amber-600 font-medium px-2 py-1 rounded-md hover:bg-amber-50 transition-colors shrink-0"
-                      onClick={(e) => { e.stopPropagation(); setEditingId(isEditing ? null : m.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isEditing) {
+                          setEditingId(null);
+                        } else {
+                          setEditingId(m.id);
+                          setEditName(m.name || '');
+                        }
+                      }}
                     >
                       {isEditing ? 'Close' : 'Edit'}
                     </button>
@@ -146,24 +199,25 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
                     <div className="px-4 pb-4 pt-1 border-t border-gray-100 space-y-3">
                       <div>
                         <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Name</label>
-                        <p className="text-sm text-gray-700">{m.name || '—'}</p>
+                        <input
+                          className={inputClass}
+                          value={editName}
+                          onChange={(e) => handleNameChange(m.id, e.target.value)}
+                          placeholder="Full name"
+                        />
                       </div>
 
-                      <div>
-                        <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Email</label>
-                        <p className="text-sm text-gray-700">{m.email}</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Role</label>
-                        <p className="text-sm text-gray-700 capitalize">{m.role}</p>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Joined</label>
-                        <p className="text-sm text-gray-700">
-                          {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        </p>
+                      <div className="flex gap-4">
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Role</label>
+                          <p className="text-sm text-gray-700 capitalize">{m.role}</p>
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Joined</label>
+                          <p className="text-sm text-gray-700">
+                            {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </p>
+                        </div>
                       </div>
 
                       {/* Actions */}
@@ -205,7 +259,6 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
                   const isEditingInv = editingId === `inv-${inv.id}`;
                   return (
                     <div key={inv.id} className="bg-white rounded-xl border border-dashed border-gray-200 overflow-hidden transition-all">
-                      {/* Card header */}
                       <div
                         className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50/50 transition-colors"
                         onClick={() => setEditingId(isEditingInv ? null : `inv-${inv.id}`)}
@@ -229,29 +282,23 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
                         </span>
                       </div>
 
-                      {/* Edit accordion */}
                       {isEditingInv && (
                         <div className="px-4 pb-4 pt-1 border-t border-gray-100 space-y-3">
-                          <div>
-                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Email</label>
-                            <p className="text-sm text-gray-700">{inv.email}</p>
-                          </div>
-
-                          {inv.name && (
-                            <div>
-                              <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Name</label>
-                              <p className="text-sm text-gray-700">{inv.name}</p>
+                          <div className="flex gap-4">
+                            {inv.name && (
+                              <div className="flex-1">
+                                <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Name</label>
+                                <p className="text-sm text-gray-700">{inv.name}</p>
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Invited</label>
+                              <p className="text-sm text-gray-700">
+                                {new Date(inv.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
                             </div>
-                          )}
-
-                          <div>
-                            <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Invited</label>
-                            <p className="text-sm text-gray-700">
-                              {new Date(inv.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </p>
                           </div>
 
-                          {/* Actions */}
                           <div className="flex gap-2 pt-2 border-t border-gray-100">
                             <button
                               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-lg hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 transition-colors"
@@ -289,7 +336,7 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
                   <circle cx="12" cy="8" r="4" />
                   <path d="M5 20c0-3.87 3.13-7 7-7s7 3.13 7 7" />
                 </svg>
-                <p className="text-sm text-gray-400">No people yet</p>
+                <p className="text-sm text-gray-400">No editors yet</p>
                 <p className="text-xs text-gray-300 mt-0.5">Send an invite below to add someone</p>
               </div>
             )}
@@ -337,6 +384,35 @@ export default function CompanyDetail({ orgId, onAgencyNameChange }: { orgId: st
           initialAgents={initialAgents}
           onAgencyNameChange={onAgencyNameChange}
         />
+      )}
+
+      {/* Delete tab */}
+      {tab === 'delete' && (
+        <div className="space-y-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <div className="flex gap-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500 shrink-0 mt-0.5">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-semibold text-red-800 mb-1">Delete this company</h3>
+                <p className="text-xs text-red-700 leading-relaxed">
+                  This will permanently delete the company and all associated data including members, documents, settings, agents, template assignments, and pending invitations. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleDeleteCompany}
+            disabled={deleting}
+            className="w-full py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+          >
+            {deleting ? 'Deleting...' : 'Delete company'}
+          </button>
+        </div>
       )}
 
       {/* Reset Password Modal */}
