@@ -1066,28 +1066,40 @@ function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate: (data: Brochur
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => handleView(tpl)}
                         disabled={!hasCode}
-                        className="text-[10px] text-amber-600 hover:text-amber-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-amber-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 bg-black/5 hover:bg-amber-500 text-gray-400 hover:text-white rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-black/5 disabled:hover:text-gray-400"
                         title={hasCode ? 'Preview in editor' : 'No code registered yet'}
                       >
+                        <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
+                          <circle cx="8" cy="8" r="2" />
+                        </svg>
                         View
                       </button>
                       <button
                         onClick={() => handleDuplicate(tpl)}
-                        className="text-[10px] text-gray-500 hover:text-gray-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-gray-100 transition-colors"
+                        className="flex items-center gap-1.5 bg-black/5 hover:bg-gray-600 text-gray-400 hover:text-white rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
                         title="Duplicate template"
                       >
+                        <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="5" y="5" width="9" height="9" rx="1.5" />
+                          <path d="M11 5V3.5A1.5 1.5 0 009.5 2h-6A1.5 1.5 0 002 3.5v6A1.5 1.5 0 003.5 11H5" />
+                        </svg>
                         Duplicate
                       </button>
                       <button
                         onClick={() => handleDelete(tpl)}
                         disabled={tpl.usage_count > 0}
-                        className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 bg-black/5 hover:bg-red-600 text-gray-400 hover:text-white rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-black/5 disabled:hover:text-gray-400"
                         title={tpl.usage_count > 0 ? `Assigned to ${tpl.usage_count} ${tpl.usage_count === 1 ? 'company' : 'companies'}` : 'Delete template'}
                       >
+                        <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 4h12M5.5 4V2.5a1 1 0 011-1h3a1 1 0 011 1V4M3.5 4l.75 9a1.5 1.5 0 001.5 1.5h4.5a1.5 1.5 0 001.5-1.5l.75-9" />
+                          <path d="M6.5 7v4M9.5 7v4" />
+                        </svg>
                         Delete
                       </button>
                     </div>
