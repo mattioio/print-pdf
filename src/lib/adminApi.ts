@@ -63,6 +63,15 @@ export interface Invitation {
   used_at: string | null;
 }
 
+export interface Template {
+  id: string;
+  name: string;
+  description: string;
+  usage_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /* ------------------------------------------------------------------ */
 /*  API methods                                                        */
 /* ------------------------------------------------------------------ */
@@ -98,6 +107,28 @@ export const adminApi = {
     adminFetch<{ success: boolean }>(`/api/admin/users/${userId}`, {
       method: 'DELETE',
       body: JSON.stringify({ organizationId }),
+    }),
+
+  // Templates
+  listTemplates: () =>
+    adminFetch<Template[]>('/api/admin/templates'),
+
+  createTemplate: (name: string) =>
+    adminFetch<Template>('/api/admin/templates', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+
+  updateTemplate: (id: string, data: { name?: string; description?: string }) =>
+    adminFetch<Template>('/api/admin/templates', {
+      method: 'PATCH',
+      body: JSON.stringify({ id, ...data }),
+    }),
+
+  deleteTemplate: (id: string) =>
+    adminFetch<{ ok: boolean }>('/api/admin/templates', {
+      method: 'DELETE',
+      body: JSON.stringify({ id }),
     }),
 };
 

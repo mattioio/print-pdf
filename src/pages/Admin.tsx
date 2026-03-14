@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { adminApi, type Company, type Member, type Invitation } from '../lib/adminApi';
+import { adminApi, type Company, type Member, type Invitation, type Template } from '../lib/adminApi';
 import { apiCompanyTemplates, type CompanyTemplateRow } from '../lib/api';
 import { templates } from '../components/pdf/templates';
+
+type AdminTab = 'companies' | 'templates';
 
 interface AdminProps {
   onBack: () => void;
 }
 
 export default function Admin({ onBack }: AdminProps) {
+  const [tab, setTab] = useState<AdminTab>('companies');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
@@ -42,39 +45,62 @@ export default function Admin({ onBack }: AdminProps) {
           <div className="flex-1" />
           <h1 className="text-sm font-semibold text-gray-900">Admin Panel</h1>
           <div className="flex-1" />
-          <div className="w-20" /> {/* Balance the back button width */}
+          <div className="w-20" />
+        </div>
+
+        {/* Tabs */}
+        <div className="max-w-4xl mx-auto px-6 flex gap-6">
+          {(['companies', 'templates'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`pb-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
+                tab === t
+                  ? 'border-amber-500 text-gray-900'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
         </div>
       </header>
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 py-8 space-y-8">
-        {/* Create Company */}
-        <CreateCompanyForm onCreated={reload} />
+        {tab === 'companies' ? (
+          <>
+            {/* Create Company */}
+            <CreateCompanyForm onCreated={reload} />
 
-        {/* Companies List */}
-        <section>
-          <h2 className="text-sm font-medium text-gray-400 mb-3">
-            Companies ({companies.length})
-          </h2>
+            {/* Companies List */}
+            <section>
+              <h2 className="text-sm font-medium text-gray-400 mb-3">
+                Companies ({companies.length})
+              </h2>
 
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : companies.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-12">No companies yet.</p>
-          ) : (
-            <div className="space-y-2">
-              {companies.map((c) => (
-                <CompanyCard
-                  key={c.id}
-                  company={c}
-                  expanded={expandedOrg === c.id}
-                  onToggle={() => setExpandedOrg(expandedOrg === c.id ? null : c.id)}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+              {loading ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : companies.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-12">No companies yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {companies.map((c) => (
+                    <CompanyCard
+                      key={c.id}
+                      company={c}
+                      expanded={expandedOrg === c.id}
+                      onToggle={() => setExpandedOrg(expandedOrg === c.id ? null : c.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        ) : (
+          <TemplatesTab />
+        )}
       </main>
     </div>
   );
@@ -596,6 +622,7 @@ function RemoveMemberModal({
 
 function TemplatesSection({ orgId }: { orgId: string }) {
   const [assigned, setAssigned] = useState<CompanyTemplateRow[]>([]);
+  const [allTemplates, setAllTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [addTemplateId, setAddTemplateId] = useState('');
@@ -605,14 +632,18 @@ function TemplatesSection({ orgId }: { orgId: string }) {
   const [editName, setEditName] = useState('');
 
   useEffect(() => {
-    apiCompanyTemplates.list(orgId)
-      .then(setAssigned)
-      .catch(() => {})
+    Promise.all([
+      apiCompanyTemplates.list(orgId),
+      adminApi.listTemplates(),
+    ]).then(([assignedList, templatesList]) => {
+      setAssigned(assignedList);
+      setAllTemplates(templatesList);
+    }).catch(() => {})
       .finally(() => setLoading(false));
   }, [orgId]);
 
-  const availableTemplates = Object.entries(templates)
-    .filter(([key]) => !assigned.some((a) => a.template_id === key));
+  const availableTemplates = allTemplates
+    .filter((t) => !assigned.some((a) => a.template_id === t.id));
 
   const handleAdd = async () => {
     if (!addTemplateId || !addDisplayName.trim()) return;
@@ -681,7 +712,7 @@ function TemplatesSection({ orgId }: { orgId: string }) {
             <div key={t.id} className="flex items-center gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900">
-                  {templates[t.template_id]?.name ?? t.template_id}
+                  {allTemplates.find((at) => at.id === t.template_id)?.name ?? t.template_id}
                 </p>
                 {editingId === t.id ? (
                   <input
@@ -732,14 +763,14 @@ function TemplatesSection({ orgId }: { orgId: string }) {
               value={addTemplateId}
               onChange={(e) => {
                 setAddTemplateId(e.target.value);
-                const tpl = templates[e.target.value];
+                const tpl = allTemplates.find((t) => t.id === e.target.value);
                 if (tpl) setAddDisplayName(tpl.name);
               }}
               className="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
             >
               <option value="">Select...</option>
-              {availableTemplates.map(([key, tpl]) => (
-                <option key={key} value={key}>{tpl.name}</option>
+              {availableTemplates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
               ))}
             </select>
           </div>
@@ -777,5 +808,238 @@ function TemplatesSection({ orgId }: { orgId: string }) {
         </button>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Templates Tab (global template registry)                           */
+/* ------------------------------------------------------------------ */
+
+function TemplatesTab() {
+  const [tpls, setTpls] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editField, setEditField] = useState<'name' | 'description'>('name');
+  const [editValue, setEditValue] = useState('');
+  const [error, setError] = useState('');
+
+  const reload = useCallback(async () => {
+    try {
+      const list = await adminApi.listTemplates();
+      setTpls(list);
+    } catch (err) {
+      console.error('Failed to load templates:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setError('');
+    setSaving(true);
+    try {
+      const created = await adminApi.createTemplate(newName.trim());
+      setTpls((prev) => [...prev, created]);
+      setNewName('');
+      setCreating(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create template');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveEdit = async (tpl: Template) => {
+    if (!editValue.trim() || editValue.trim() === (editField === 'name' ? tpl.name : tpl.description)) {
+      setEditingId(null);
+      return;
+    }
+    try {
+      const updated = await adminApi.updateTemplate(tpl.id, { [editField]: editValue.trim() });
+      setTpls((prev) => prev.map((t) => (t.id === tpl.id ? { ...t, ...updated } : t)));
+    } catch {
+      // silently fail
+    }
+    setEditingId(null);
+  };
+
+  const handleDelete = async (tpl: Template) => {
+    if (tpl.usage_count > 0) return;
+    try {
+      await adminApi.deleteTemplate(tpl.id);
+      setTpls((prev) => prev.filter((t) => t.id !== tpl.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete template');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Template list */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-gray-400">
+            Templates ({tpls.length})
+          </h2>
+          <button
+            onClick={() => setCreating(true)}
+            className="px-4 py-1.5 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+          >
+            New Template
+          </button>
+        </div>
+
+        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
+
+        {/* Create form */}
+        {creating && (
+          <form onSubmit={handleCreate} className="bg-white rounded-xl border border-gray-200 p-5 mb-3">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Template Name</label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g. Social Media Post"
+                  autoFocus
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving || !newName.trim()}
+                className="px-5 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+              >
+                {saving ? 'Creating...' : 'Create'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setCreating(false); setNewName(''); setError(''); }}
+                className="px-3 py-2 text-sm text-gray-400 hover:text-gray-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+
+        {tpls.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-12">No templates yet. Create one to get started.</p>
+        ) : (
+          <div className="space-y-2">
+            {tpls.map((tpl) => {
+              const hasCode = !!templates[tpl.id];
+              return (
+                <div key={tpl.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1 min-w-0">
+                      {/* Name */}
+                      {editingId === tpl.id && editField === 'name' ? (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleSaveEdit(tpl)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit(tpl);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          autoFocus
+                          className="w-full px-2 py-0.5 -ml-2 border border-amber-300 rounded text-sm font-semibold text-gray-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                      ) : (
+                        <h3
+                          className="text-sm font-semibold text-gray-900 cursor-pointer hover:text-amber-600 transition-colors"
+                          onClick={() => {
+                            setEditingId(tpl.id);
+                            setEditField('name');
+                            setEditValue(tpl.name);
+                          }}
+                        >
+                          {tpl.name}
+                        </h3>
+                      )}
+
+                      {/* Description */}
+                      {editingId === tpl.id && editField === 'description' ? (
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={() => handleSaveEdit(tpl)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleSaveEdit(tpl);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                          autoFocus
+                          className="w-full px-2 py-0.5 -ml-2 mt-1 border border-amber-300 rounded text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          placeholder="Add a description..."
+                        />
+                      ) : (
+                        <p
+                          className="text-xs text-gray-400 mt-0.5 cursor-pointer hover:text-gray-600 transition-colors"
+                          onClick={() => {
+                            setEditingId(tpl.id);
+                            setEditField('description');
+                            setEditValue(tpl.description);
+                          }}
+                        >
+                          {tpl.description || 'Click to add description...'}
+                        </p>
+                      )}
+
+                      {/* Meta */}
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                          hasCode
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-amber-50 text-amber-700'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${hasCode ? 'bg-green-500' : 'bg-amber-500'}`} />
+                          {hasCode ? 'Ready' : 'In Development'}
+                        </span>
+                        <span className="text-[10px] text-gray-300">
+                          {tpl.usage_count} company{tpl.usage_count !== 1 ? 'ies' : ''}
+                        </span>
+                        <span className="text-[10px] text-gray-300">
+                          ID: {tpl.id}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <button
+                      onClick={() => handleDelete(tpl)}
+                      disabled={tpl.usage_count > 0}
+                      className="text-[10px] text-red-500 hover:text-red-700 font-medium uppercase px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                      title={tpl.usage_count > 0 ? `Assigned to ${tpl.usage_count} company${tpl.usage_count !== 1 ? 'ies' : ''}` : 'Delete template'}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </>
   );
 }
