@@ -5,7 +5,7 @@ import ClassicForm from '../../form/templates/ClassicForm';
 export const templates: Record<string, TemplateDefinition> = {
   classic: {
     id: 'classic',
-    name: 'Classic',
+    name: 'Jenkins Law Brochure',
     description: 'Traditional commercial property brochure with gold accents',
     pdfComponent: ClassicTemplate,
     formComponent: ClassicForm,
