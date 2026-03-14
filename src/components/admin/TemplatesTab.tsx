@@ -1,16 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { adminApi, type Template } from '../../lib/adminApi';
-import { apiCompanySettings, apiCompanyAgents } from '../../lib/api';
-import { settingsToClient } from '../../lib/convert';
-import { createDefaultBrochureForOrg } from '../../utils/defaults';
-import { templates } from '../pdf/templates';
 import ActionButton from '../ActionButton';
-import type { BrochureData } from '../../types/brochure';
 
-export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate: (data: BrochureData) => void }) {
-  const { organization } = useAuth();
+export default function TemplatesTab() {
   const { toast } = useToast();
   const [tpls, setTpls] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,6 +61,16 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
     setEditingId(null);
   };
 
+  const handleToggleStatus = async (tpl: Template) => {
+    const newStatus = tpl.status === 'published' ? 'draft' : 'published';
+    try {
+      const updated = await adminApi.updateTemplate(tpl.id, { status: newStatus });
+      setTpls((prev) => prev.map((t) => (t.id === tpl.id ? { ...t, ...updated } : t)));
+    } catch {
+      toast('Failed to update template status', 'error');
+    }
+  };
+
   const handleDelete = async (tpl: Template) => {
     if (tpl.usage_count > 0) return;
     try {
@@ -75,22 +78,6 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
       setTpls((prev) => prev.filter((t) => t.id !== tpl.id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete template');
-    }
-  };
-
-  const handleView = async (tpl: Template) => {
-    if (!organization) return;
-    try {
-      const [settings, agents] = await Promise.all([
-        apiCompanySettings.get(organization.id),
-        apiCompanyAgents.list(organization.id),
-      ]);
-      const data = createDefaultBrochureForOrg(settingsToClient(settings, agents), tpl.id);
-      data.name = `Preview: ${tpl.name}`;
-      onPreviewTemplate(data);
-    } catch (err) {
-      console.error('Failed to preview template:', err);
-      toast('Failed to preview template', 'error');
     }
   };
 
@@ -168,7 +155,7 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
         ) : (
           <div className="space-y-2">
             {tpls.map((tpl) => {
-              const hasCode = !!templates[tpl.id];
+              const isPublished = tpl.status === 'published';
               return (
                 <div key={tpl.id} className="bg-white rounded-xl border border-gray-200 px-5 py-4">
                   <div className="flex items-start gap-4">
@@ -264,12 +251,12 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                       {/* Meta */}
                       <div className="flex items-center gap-3 mt-2">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          hasCode
+                          isPublished
                             ? 'bg-green-50 text-green-700'
                             : 'bg-amber-50 text-amber-700'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${hasCode ? 'bg-green-500' : 'bg-amber-500'}`} />
-                          {hasCode ? 'Ready' : 'In Development'}
+                          <span className={`w-1.5 h-1.5 rounded-full ${isPublished ? 'bg-green-500' : 'bg-amber-500'}`} />
+                          {isPublished ? 'Published' : 'Draft'}
                         </span>
                         <span className="text-[10px] text-gray-300">
                           {tpl.usage_count} {tpl.usage_count === 1 ? 'company' : 'companies'}
@@ -283,16 +270,23 @@ export default function TemplatesTab({ onPreviewTemplate }: { onPreviewTemplate:
                     {/* Actions */}
                     <div className="flex items-center gap-2 shrink-0">
                       <ActionButton
-                        label="View"
-                        hoverColor="hover:bg-amber-500"
-                        onClick={() => handleView(tpl)}
-                        disabled={!hasCode}
-                        title={hasCode ? 'Preview in editor' : 'No code registered yet'}
+                        label={isPublished ? 'Unpublish' : 'Publish'}
+                        hoverColor={isPublished ? 'hover:bg-amber-500' : 'hover:bg-green-600'}
+                        onClick={() => handleToggleStatus(tpl)}
+                        title={isPublished ? 'Revert to draft — users won\'t see this template' : 'Publish — users can see this template'}
                         icon={
-                          <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
-                            <circle cx="8" cy="8" r="2" />
-                          </svg>
+                          isPublished ? (
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
+                              <circle cx="8" cy="8" r="2" />
+                              <path d="M2 14L14 2" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3 h-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M8 3C4.5 3 1.5 8 1.5 8s3 5 6.5 5 6.5-5 6.5-5-3-5-6.5-5z" />
+                              <circle cx="8" cy="8" r="2" />
+                            </svg>
+                          )
                         }
                       />
                       <ActionButton

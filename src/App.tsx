@@ -122,7 +122,7 @@ function AppRoutes() {
     <ErrorBoundary>
       <Suspense fallback={PageSpinner}>
         {route.page === 'admin' ? (
-          <Admin onBack={handleBack} onPreviewTemplate={handleEdit} />
+          <Admin onBack={handleBack} />
         ) : route.page === 'editor' ? (
           <ErrorBoundary key={route.data.id}>
             <BrochureProvider initial={route.data} onSaveError={() => toast("Changes couldn't be saved", 'error')}>
