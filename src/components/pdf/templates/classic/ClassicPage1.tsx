@@ -312,6 +312,9 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
     <>
       {/* ═══════════════ PAGE 1 ═══════════════ */}
       <Page size="A4" style={[s.page, { fontFamily: bodyFont, paddingBottom: 0, color: bodyColor }]}>
+        {/* ── Accent border top ── */}
+        <View style={{ height: 16, backgroundColor: accent }} />
+
         {/* ── Agency header ── */}
         <View style={s.header}>
           {data.agency.logoUrl ? (
