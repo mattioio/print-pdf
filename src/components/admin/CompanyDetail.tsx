@@ -207,17 +207,22 @@ export default function CompanyDetail({ orgId, onAgencyNameChange, onDeleted }: 
                         />
                       </div>
 
-                      <div className="flex gap-4">
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Role</label>
-                          <p className="text-sm text-gray-700 capitalize">{m.role}</p>
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-1">Joined</label>
-                          <p className="text-sm text-gray-700">
-                            {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                          </p>
-                        </div>
+                      <div className="flex gap-2">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 rounded-full px-2.5 py-1">
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11.5 1.5l3 3L5 14H2v-3z" />
+                            <path d="M9.5 3.5l3 3" />
+                          </svg>
+                          Editor
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 rounded-full px-2.5 py-1">
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="2" y="3" width="12" height="11" rx="1.5" />
+                            <path d="M2 6.5h12" />
+                            <path d="M5.5 1.5v3M10.5 1.5v3" />
+                          </svg>
+                          {new Date(m.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
                       </div>
 
                       {/* Actions */}
