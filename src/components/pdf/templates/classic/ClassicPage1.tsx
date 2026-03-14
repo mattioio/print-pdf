@@ -258,8 +258,10 @@ function renderBlock(
             </View>
           )}
           {/* Table rows (no header) */}
-          {block.rows.map((row, ri) => (
-            <View style={[s.tableRow, ri % 2 === 1 ? s.tableRowStriped : {}, { paddingVertical: block.density.paddingVertical }]} key={row.id}>
+          {block.rows.map((row, ri) => {
+            const striped = block.rows.length % 2 === 0 ? ri % 2 === 0 : ri % 2 === 1;
+            return (
+            <View style={[s.tableRow, striped ? s.tableRowStriped : {}, { paddingVertical: block.density.paddingVertical }]} key={row.id}>
               <Text style={[s.tableFloor, { fontSize: block.density.fontSize, color: bodyColor }]}>{row.floor}</Text>
               <Text style={[s.tableSqFt, { fontSize: block.density.fontSize, color: textColor }]}>
                 {row.sqFt !== null ? `${formatNumber(row.sqFt)} sq ft` : '—'}
@@ -268,7 +270,8 @@ function renderBlock(
                 {row.sqM !== null ? `${formatNumber(row.sqM)} m²` : ''}
               </Text>
             </View>
-          ))}
+            );
+          })}
           {block.hasTotalRow && (
             <View style={[s.tableTotalRow, { backgroundColor: '#f0f0f0' }]}>
               <Text style={[s.tableFloor, { fontWeight: 700, color: textColor }]}>Total</Text>
