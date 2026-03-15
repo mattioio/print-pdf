@@ -359,8 +359,13 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                         {b.location_name && (
                           <p className="text-sm text-gray-500 mt-0.5 truncate font-medium">{b.location_name}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs text-gray-300">
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">
+                            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="2" y="3" width="12" height="11" rx="1.5" />
+                              <path d="M2 6.5h12" />
+                              <path d="M5.5 1.5v3M10.5 1.5v3" />
+                            </svg>
                             {new Date(b.updated_at).toLocaleDateString('en-GB', {
                               day: 'numeric',
                               month: 'short',
@@ -368,12 +373,13 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                             })}
                           </span>
                           {b.template_id && (
-                            <>
-                              <span className="text-xs text-gray-200">·</span>
-                              <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                                {templates[b.template_id]?.name ?? b.template_id}
-                              </span>
-                            </>
+                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">
+                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M9 1.5H4a1.5 1.5 0 00-1.5 1.5v10A1.5 1.5 0 004 14.5h8a1.5 1.5 0 001.5-1.5V6L9 1.5z" />
+                                <path d="M9 1.5V6h4.5" />
+                              </svg>
+                              {templates[b.template_id]?.name ?? b.template_id}
+                            </span>
                           )}
                         </div>
                       </div>
