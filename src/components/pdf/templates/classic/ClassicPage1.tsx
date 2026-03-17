@@ -1,4 +1,4 @@
-import { Page, View, Text, Image, StyleSheet, Svg, Path, Circle } from '@react-pdf/renderer';
+import { Page, View, Text, Image, StyleSheet, Svg, Path, Circle, Defs, LinearGradient, Stop, Rect } from '@react-pdf/renderer';
 import type { BrochureData } from '../../../../types/brochure';
 import RichText from '../../shared/RichText';
 import { buildContentStream, allocateColumns, getTableDensity, computeHeroHeight, HERO_HEIGHTS, BASE_BODY_HEIGHT } from '../../shared/columnFlow';
@@ -393,20 +393,36 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
               marginLeft: -(boxWidth * (z - 1)) * (px / 100),
               marginTop: -(boxHeight * (z - 1)) * (py / 100),
             };
+            const containerW = 595; // full page width
+            const containerH = boxHeight + 48; // image height + vertical padding
             return (
-              <View style={{ flexDirection: 'row', paddingHorizontal: 40, paddingTop: 24, paddingBottom: 16, gap: 24, alignItems: 'center' }}>
-                <View style={{ flex: 1, justifyContent: 'center', overflow: 'hidden' }}>
-                  {titleContent}
+              <View style={{ marginTop: 24, marginBottom: 16 }}>
+                {/* Gradient background — full width, lighter on left */}
+                <Svg width={containerW} height={containerH} style={{ position: 'absolute', top: 0, left: 0 }}>
+                  <Defs>
+                    <LinearGradient id="smallHeroBg" x1="0%" y1="50%" x2="100%" y2="50%">
+                      <Stop offset="0%" stopColor="#f9fafb" />
+                      <Stop offset="50%" stopColor="#f3f4f6" />
+                      <Stop offset="100%" stopColor="#e5e7eb" />
+                    </LinearGradient>
+                  </Defs>
+                  <Rect x="0" y="0" width={containerW} height={containerH} fill="url(#smallHeroBg)" />
+                </Svg>
+                {/* Content on top */}
+                <View style={{ flexDirection: 'row', paddingHorizontal: 40, paddingVertical: 24, gap: 24, alignItems: 'center' }}>
+                  <View style={{ flex: 1, justifyContent: 'center', overflow: 'hidden' }}>
+                    {titleContent}
+                  </View>
+                  {data.heroImageUrl ? (
+                    <View style={{ width: boxWidth, height: boxHeight, overflow: 'hidden', borderRadius: 4 }}>
+                      <Image src={data.heroImageUrl} style={imgStyle} />
+                    </View>
+                  ) : (
+                    <View style={[s.heroPlaceholder, { width: boxWidth, height: boxHeight, borderRadius: 4 }]}>
+                      <Text style={s.heroPlaceholderText}>Photo</Text>
+                    </View>
+                  )}
                 </View>
-                {data.heroImageUrl ? (
-                  <View style={{ width: boxWidth, height: boxHeight, overflow: 'hidden', borderRadius: 4 }}>
-                    <Image src={data.heroImageUrl} style={imgStyle} />
-                  </View>
-                ) : (
-                  <View style={[s.heroPlaceholder, { width: boxWidth, height: boxHeight, borderRadius: 4 }]}>
-                    <Text style={s.heroPlaceholderText}>Photo</Text>
-                  </View>
-                )}
               </View>
             );
           }
@@ -605,9 +621,9 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
         <View style={shared.mapSection}>
           <Text style={[shared.mapLabel, { fontFamily: bodyFont, color: textColor }]}>Location</Text>
           {data.mapImageUrl ? (
-            <Image src={data.mapImageUrl} style={[shared.mapImage, gallery.length > 0 ? { height: 200 } : {}]} />
+            <Image src={data.mapImageUrl} style={[shared.mapImage, gallery.length > 0 ? { height: 260 } : {}]} />
           ) : (
-            <View style={[shared.mapPlaceholder, gallery.length > 0 ? { height: 200 } : {}]}>
+            <View style={[shared.mapPlaceholder, gallery.length > 0 ? { height: 260 } : {}]}>
               <Text style={shared.mapPlaceholderText}>Location Map</Text>
             </View>
           )}

@@ -60,12 +60,24 @@ export default function MarkdownHelp({ open, onClose }: MarkdownHelpProps) {
             <HelpRow syntax="Blank line" description="Paragraph break" preview="¶" />
           </div>
 
-          <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-3">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Example</h3>
-            <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-mono bg-white rounded-md border border-gray-200 p-3">{`*Misrepresentation Act:* Whilst every care is taken in the preparation of these particulars, the agents take no responsibility for any error.
+          <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-4">
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">You type</h3>
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed font-mono bg-white rounded-md border border-gray-200 p-3">{`*Misrepresentation Act:* Whilst every care is taken in the preparation of these particulars, the agents take no responsibility for any error.
 
 - Measurements are approximate
 - These particulars do not constitute an offer`}</pre>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">PDF output</h3>
+              <div className="text-sm text-gray-700 leading-relaxed bg-white rounded-md border border-gray-200 p-3">
+                <p><span className="font-bold">Misrepresentation Act:</span> Whilst every care is taken in the preparation of these particulars, the agents take no responsibility for any error.</p>
+                <div className="mt-2 space-y-0.5">
+                  <p className="flex gap-1.5"><span className="text-gray-400">•</span> Measurements are approximate</p>
+                  <p className="flex gap-1.5"><span className="text-gray-400">•</span> These particulars do not constitute an offer</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

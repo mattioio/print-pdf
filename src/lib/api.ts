@@ -254,6 +254,7 @@ export async function uploadImage(file: Blob, filename: string): Promise<string>
   const res = await fetch('/api/upload', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
+    credentials: 'include',
     body: formData,
   });
 

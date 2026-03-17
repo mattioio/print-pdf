@@ -78,12 +78,12 @@ export const shared = StyleSheet.create({
   },
   mapImage: {
     width: '100%',
-    height: 270,
+    height: 351,
     objectFit: 'cover',
   },
   mapPlaceholder: {
     width: '100%',
-    height: 270,
+    height: 351,
     backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',

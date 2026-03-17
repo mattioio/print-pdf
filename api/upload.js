@@ -6,12 +6,24 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Extract session token from cookie or Bearer header
+  const cookies = (req.headers.cookie || '').split(';').reduce((acc, c) => {
+    const [k, ...v] = c.trim().split('=');
+    if (k) acc[k] = v.join('=');
+    return acc;
+  }, {});
+  const sessionToken = cookies['better-auth.session_token']?.split('.')[0]
+    || cookies['__Secure-better-auth.session_token']?.split('.')[0];
+
+  // Also accept Bearer token (raw session token, not JWT)
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  const token = sessionToken || bearerToken;
+  if (!token) {
     return res.status(401).json({ error: 'Missing auth token' });
   }
 
-  const token = authHeader.slice(7);
   const sql = neon(process.env.DATABASE_URL);
 
   try {
