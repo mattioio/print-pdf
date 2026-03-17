@@ -20,6 +20,10 @@ module.exports = async function handler(req, res) {
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
   const token = sessionToken || bearerToken;
+  console.log('[upload] cookie keys:', Object.keys(cookies));
+  console.log('[upload] sessionToken:', sessionToken ? `${sessionToken.slice(0, 8)}...` : null);
+  console.log('[upload] bearerToken:', bearerToken ? `${bearerToken.slice(0, 8)}...` : null);
+  console.log('[upload] final token:', token ? `${token.slice(0, 8)}...` : null);
   if (!token) {
     return res.status(401).json({ error: 'Missing auth token' });
   }
@@ -36,8 +40,9 @@ module.exports = async function handler(req, res) {
       LIMIT 1
     `;
 
+    console.log('[upload] session rows:', sessions.length);
     if (sessions.length === 0) {
-      return res.status(401).json({ error: 'Invalid or expired session' });
+      return res.status(401).json({ error: 'Invalid or expired session', debug: { hasCookie: !!sessionToken, hasBearer: !!bearerToken, tokenPrefix: token?.slice(0, 8) } });
     }
 
     const chunks = [];
