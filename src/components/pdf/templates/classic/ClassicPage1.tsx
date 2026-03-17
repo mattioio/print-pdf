@@ -1,7 +1,7 @@
 import { Page, View, Text, Image, StyleSheet, Svg, Path, Circle } from '@react-pdf/renderer';
 import type { BrochureData } from '../../../../types/brochure';
 import RichText from '../../shared/RichText';
-import { buildContentStream, allocateColumns, getTableDensity, HERO_HEIGHTS, BASE_BODY_HEIGHT } from '../../shared/columnFlow';
+import { buildContentStream, allocateColumns, getTableDensity, computeHeroHeight, HERO_HEIGHTS, BASE_BODY_HEIGHT } from '../../shared/columnFlow';
 import type { MeasuredBlock } from '../../shared/columnFlow';
 import { shared } from './classicStyles';
 
@@ -303,7 +303,7 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
   const density = getTableDensity(filledRows.length);
 
   const heroSize = data.heroSize ?? 'landscape';
-  const HERO_HEIGHT = HERO_HEIGHTS[heroSize];
+  const HERO_HEIGHT = computeHeroHeight(data);
   const bodyHeight = BASE_BODY_HEIGHT - (HERO_HEIGHT - HERO_HEIGHTS.landscape);
   const gallery = data.showGallery ? (data.galleryImages ?? []).filter((img) => img.url) : [];
 
@@ -316,7 +316,7 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
       {/* ═══════════════ PAGE 1 ═══════════════ */}
       <Page size="A4" style={[s.page, { fontFamily: bodyFont, paddingBottom: 0, color: bodyColor }]}>
         {/* ── Accent border top ── */}
-        <View style={{ height: 16, backgroundColor: accent }} />
+        <View style={{ height: 10, backgroundColor: accent }} />
 
         {/* ── Agency header ── */}
         <View style={s.header}>
@@ -352,13 +352,68 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
           </View>
         </View>
 
-        {/* ── Full-width hero + title below ── */}
-        {data.heroImageUrl ? (
-          (() => {
-            const z = (data.heroZoom ?? 100) / 100;
-            const px = data.heroImagePosition?.x ?? 50;
-            const py = data.heroImagePosition?.y ?? 50;
-            const imgStyle = [
+        {/* ── Hero + title ── */}
+        {(() => {
+          const isSmallBox = heroSize === 'small';
+          const z = (data.heroZoom ?? 100) / 100;
+          const px = data.heroImagePosition?.x ?? 50;
+          const py = data.heroImagePosition?.y ?? 50;
+
+          // Scale location name font for small hero to prevent overflow
+          const nameLen = (data.locationName ?? '').length;
+          const locationFontSize = isSmallBox
+            ? (nameLen > 20 ? 28 : nameLen > 12 ? 34 : 44)
+            : 44;
+
+          const titleContent = (
+            <>
+              <Text style={[s.headline, { fontFamily: bodyFont, color: textColor }]}>{data.headline}</Text>
+              <Text style={[s.locationName, { fontFamily: titleFont, color: textColor, fontSize: locationFontSize }]}>{data.locationName}</Text>
+              {data.propertyAddress ? (
+                <View style={s.addressRow}>
+                  <Svg width="8" height="10" viewBox="0 0 8 10">
+                    <Path d="M4 0C1.8 0 0 1.7 0 3.8C0 6.3 4 10 4 10C4 10 8 6.3 8 3.8C8 1.7 6.2 0 4 0Z" fill={accent} />
+                    <Circle cx="4" cy="3.8" r="1.5" fill="white" />
+                  </Svg>
+                  <Text style={s.addressText}>{data.propertyAddress}</Text>
+                </View>
+              ) : null}
+            </>
+          );
+
+          if (isSmallBox) {
+            // Side-by-side: title on left, image on right
+            const boxHeight = HERO_HEIGHT; // 200pt
+            const boxWidth = boxHeight; // square
+            const imgStyle = {
+              width: boxWidth * z,
+              height: boxHeight * z,
+              objectFit: 'cover' as const,
+              objectPosition: `${px}% ${py}%`,
+              marginLeft: -(boxWidth * (z - 1)) * (px / 100),
+              marginTop: -(boxHeight * (z - 1)) * (py / 100),
+            };
+            return (
+              <View style={{ flexDirection: 'row', paddingHorizontal: 40, paddingTop: 24, paddingBottom: 16, gap: 24, alignItems: 'center' }}>
+                <View style={{ flex: 1, justifyContent: 'center', overflow: 'hidden' }}>
+                  {titleContent}
+                </View>
+                {data.heroImageUrl ? (
+                  <View style={{ width: boxWidth, height: boxHeight, overflow: 'hidden', borderRadius: 4 }}>
+                    <Image src={data.heroImageUrl} style={imgStyle} />
+                  </View>
+                ) : (
+                  <View style={[s.heroPlaceholder, { width: boxWidth, height: boxHeight, borderRadius: 4 }]}>
+                    <Text style={s.heroPlaceholderText}>Photo</Text>
+                  </View>
+                )}
+              </View>
+            );
+          }
+
+          // Full-width hero (landscape / tall) — image above, title below
+          const heroImage = data.heroImageUrl ? (() => {
+            const imgStyleFull = [
               s.heroImage,
               {
                 height: HERO_HEIGHT * z,
@@ -370,40 +425,83 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
             ];
             return z > 1 ? (
               <View style={{ width: '100%', height: HERO_HEIGHT, overflow: 'hidden' }}>
-                <Image src={data.heroImageUrl} style={imgStyle} />
+                <Image src={data.heroImageUrl} style={imgStyleFull} />
               </View>
             ) : (
-              <Image src={data.heroImageUrl} style={imgStyle} />
+              <Image src={data.heroImageUrl} style={imgStyleFull} />
             );
-          })()
-        ) : (
-          <View style={[s.heroPlaceholder, { height: HERO_HEIGHT }]}>
-            <Text style={s.heroPlaceholderText}>Property Photo</Text>
-          </View>
-        )}
-
-        <View style={s.titleBlock}>
-          <Text style={[s.headline, { fontFamily: bodyFont, color: textColor }]}>{data.headline}</Text>
-          <Text style={[s.locationName, { fontFamily: titleFont, color: textColor }]}>{data.locationName}</Text>
-          {data.propertyAddress ? (
-            <View style={s.addressRow}>
-              <Svg width="8" height="10" viewBox="0 0 8 10">
-                <Path d="M4 0C1.8 0 0 1.7 0 3.8C0 6.3 4 10 4 10C4 10 8 6.3 8 3.8C8 1.7 6.2 0 4 0Z" fill={accent} />
-                <Circle cx="4" cy="3.8" r="1.5" fill="white" />
-              </Svg>
-              <Text style={s.addressText}>{data.propertyAddress}</Text>
+          })() : (
+            <View style={[s.heroPlaceholder, { height: HERO_HEIGHT }]}>
+              <Text style={s.heroPlaceholderText}>Property Photo</Text>
             </View>
-          ) : null}
-        </View>
+          );
+
+          return (
+            <>
+              {heroImage}
+              <View style={s.titleBlock}>
+                {titleContent}
+              </View>
+            </>
+          );
+        })()}
 
         {/* ── Two-column body (newspaper flow, clipped to remaining page space) ── */}
-        <View style={s.bodyClip}>
+        <View style={heroSize === 'small' ? undefined : s.bodyClip}>
           <View style={s.body}>
             <View style={shared.col}>
               {left.map((mb, i) => renderBlock(mb, i, bodyFont, accent, textColor, bodyColor))}
+              {/* Small hero: inline extra sections in the same column */}
+              {heroSize === 'small' && (
+                <>
+                  {data.lease ? (
+                    <>
+                      <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Lease</Text>
+                      <RichText text={data.lease} style={[shared.bodyText, { color: bodyColor }]} />
+                    </>
+                  ) : null}
+                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Rates</Text>
+                  <RichText
+                    text={data.rates || 'Interested parties are advised to make their own enquiries directly with the Local Authority.'}
+                    style={[shared.bodyText, { color: bodyColor }]}
+                  />
+                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Legal Costs</Text>
+                  <RichText text={data.legalCosts} style={[shared.bodyText, { color: bodyColor }]} />
+                  {data.epc ? (
+                    <>
+                      <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>EPC</Text>
+                      <RichText text={data.epc} style={[shared.bodyText, { color: bodyColor }]} />
+                    </>
+                  ) : null}
+                </>
+              )}
             </View>
             <View style={shared.col}>
               {right.map((mb, i) => renderBlock(mb, i + left.length, bodyFont, accent, textColor, bodyColor))}
+              {/* Small hero: inline viewings in the same column */}
+              {heroSize === 'small' && (
+                <>
+                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Viewings</Text>
+                  <Text style={[shared.bodyText, { color: bodyColor }]}>
+                    {data.agency.telephone ? (
+                      <>
+                        {'For viewings please call '}
+                        <Text style={{ fontWeight: 700, fontSize: 8 }}>{data.agency.telephone}</Text>
+                        {' or email one of our agents:'}
+                      </>
+                    ) : 'Please contact:'}
+                  </Text>
+                  {data.viewings.map((contact, i) => (
+                    <View style={[shared.contactItem, { borderLeftColor: accent }]} key={i}>
+                      {contact.name ? <Text style={[shared.contactName, { color: textColor }]}>{contact.name}</Text> : null}
+                      {contact.email ? <Text style={[shared.contactEmail, { color: bodyColor }]}>{contact.email}</Text> : null}
+                    </View>
+                  ))}
+                  {data.viewingsBlurb ? (
+                    <RichText text={data.viewingsBlurb} style={[shared.viewingsBlurb, { color: bodyColor }]} />
+                  ) : null}
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -420,7 +518,8 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
           )}
         </View>
 
-        {/* ── Two-column body ── */}
+        {/* ── Two-column body (skip for small hero — already on page 1) ── */}
+        {heroSize !== 'small' && (
         <View style={s.body}>
           <View style={shared.col}>
             {data.lease ? (
@@ -475,6 +574,7 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
             ) : null}
           </View>
         </View>
+        )}
 
         {/* ── Gallery (optional) ── */}
         {gallery.length > 0 && (() => {

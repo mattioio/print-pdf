@@ -170,8 +170,9 @@ export default function PropertySection() {
         <div data-section="hero-size">
           <div className="flex rounded-lg bg-gray-100 p-0.5">
             {([
-              { value: 'landscape', label: 'Landscape', h: 736 },
-              { value: 'tall', label: 'Tall', h: 1000 },
+              { value: 'landscape', label: 'Landscape' },
+              { value: 'tall', label: 'Tall' },
+              { value: 'small', label: 'Small' },
             ] as const).map((opt) => (
               <button
                 key={opt.value}
@@ -188,7 +189,7 @@ export default function PropertySection() {
             ))}
           </div>
           <p className="text-[10px] text-gray-400 text-center mt-1">
-            Recommended: 1190 × {(data.heroSize ?? 'landscape') === 'tall' ? '1000' : '736'}px
+            Recommended: {(data.heroSize ?? 'landscape') === 'small' ? '400 × 400px' : `1190 × ${(data.heroSize ?? 'landscape') === 'tall' ? '736' : '552'}px`}
           </p>
         </div>
 
@@ -196,8 +197,8 @@ export default function PropertySection() {
           value={data.heroImageUrl}
           onChange={(v) => updateField('heroImageUrl', v)}
           label="Upload property photo"
-          aspectRatio={(data.heroSize ?? 'landscape') === 'tall' ? 595 / 500 : 595 / 368}
-          height="160px"
+          aspectRatio={(data.heroSize ?? 'landscape') === 'small' ? 1 : (data.heroSize ?? 'landscape') === 'tall' ? 595 / 368 : 595 / 276}
+          height={(data.heroSize ?? 'landscape') === 'small' ? '120px' : '160px'}
           position={data.heroImagePosition}
           onPositionChange={(pos) => updateField('heroImagePosition', pos)}
           zoom={data.heroZoom ?? 100}
@@ -420,10 +421,11 @@ export default function PropertySection() {
           </ToggleSwitch>
           {!!data.premisesLicence && (
             <div className="mt-2">
-              <Input
+              <TextArea
                 value={data.premisesLicence}
                 onChange={(v) => updateField('premisesLicence', v)}
                 placeholder="e.g. The premises benefits from a 24 hour licence"
+                rows={2}
               />
             </div>
           )}

@@ -43,7 +43,7 @@ export function rowToBrochure(
     // Hero image
     heroImageUrl: row.hero_image_url,
     heroImagePosition: row.hero_image_position as { x: number; y: number },
-    heroSize: row.hero_size as 'landscape' | 'tall',
+    heroSize: row.hero_size as 'landscape' | 'tall' | 'small',
     heroZoom: row.hero_zoom,
 
     // Gallery

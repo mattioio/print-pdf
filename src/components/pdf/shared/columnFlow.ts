@@ -11,7 +11,7 @@ import { generateUseText } from '../../../utils/useText';
 
 /* ═══════════════ Layout constants ═══════════════ */
 
-export const HERO_HEIGHTS = { landscape: 368, tall: 500 } as const;
+export const HERO_HEIGHTS = { landscape: 276, tall: 368, small: 200 } as const;
 export const BASE_BODY_HEIGHT = 260;
 
 /* ── Auto-compact density for accommodation table ── */
@@ -61,8 +61,8 @@ export interface ColumnAllocation {
 
 const LINE_H = 8.5 * 1.25; // 10.625pt — bodyText fontSize × lineHeight
 const CHARS_PER_LINE = 53; // conservative for ~261pt column at 8.5pt Montserrat
-const LABEL_H = 20; // label text + marginBottom 8
-const LABEL_SPACING = 16; // marginTop on non-first labels
+export const LABEL_H = 20; // label text + marginBottom 8
+export const LABEL_SPACING = 16; // marginTop on non-first labels
 const BULLET_MB = 2; // bulletRow marginBottom
 const EMPTY_LINE_H = 4; // blank-line spacer in RichText
 const TABLE_HEADER_H = 15; // header row height
@@ -79,7 +79,7 @@ function estimateLineHeight(line: string): number {
   return wrappedLines * LINE_H;
 }
 
-function estimateTextHeight(text: string): number {
+export function estimateTextHeight(text: string): number {
   if (!text) return 0;
   return text.split('\n').reduce((h, line) => h + estimateLineHeight(line), 0);
 }
@@ -172,7 +172,7 @@ export function buildContentStream(
   blocks.push({ type: 'column-break' });
 
   // 5. Accommodation (table — atomic unit)
-  blocks.push({ type: 'label', text: 'Accommodation', isFirst: true });
+  blocks.push({ type: 'label', text: 'Accommodation', isFirst });
   isFirst = false;
   const autoDescription = generateAccommodationDescription(
     filledRows.map((r) => r.floor).filter(Boolean),
@@ -266,8 +266,16 @@ export function allocateColumns(
           continue;
         }
       }
-      (switched ? right : left).push({ block, height });
-      remaining -= height;
+      const target = switched ? right : left;
+      // If this label claims isFirst but there's already content in the column, correct it
+      if (block.type === 'label' && block.isFirst && target.length > 0) {
+        const corrected = { ...block, isFirst: false };
+        target.push({ block: corrected, height: LABEL_H + LABEL_SPACING });
+        remaining -= (LABEL_H + LABEL_SPACING);
+      } else {
+        target.push({ block, height });
+        remaining -= height;
+      }
       i++;
       continue;
     }
@@ -351,20 +359,74 @@ export function allocateColumns(
   return { left, right, overflowed };
 }
 
-/* ═══════════════ Overflow check for page 1 ═══════════════ */
+/* ═══════════════ Adaptive hero height ═══════════════ */
+
+/** Minimum hero height before we give up shrinking (pt) */
+const MIN_HERO_HEIGHT = 140;
+/** Step size for shrinking hero (pt) */
+const HERO_SHRINK_STEP = 20;
 
 /**
- * Returns true if page 1 body content overflows the available space.
- * Use this to warn the user in the editor before they download.
+ * Compute the effective hero height for page 1.
+ *
+ * For full-width modes (landscape / tall), the hero shrinks automatically
+ * if the body content would overflow — so users never see a surprise extra
+ * page. Small box modes are fixed-size and don't shrink.
  */
-export function checkPage1Overflow(data: BrochureData): boolean {
+export function computeHeroHeight(data: BrochureData): number {
+  const heroSize = data.heroSize ?? 'landscape';
+  const nominal = HERO_HEIGHTS[heroSize];
+
+  // Small box modes don't shrink
+  if (heroSize === 'small') return nominal;
+
   const filledRows = data.accommodation.filter(
     (r) => r.floor?.trim() || (r.sqFt != null && r.sqFt !== 0),
   );
   const density = getTableDensity(filledRows.length);
+  const stream = buildContentStream(data, filledRows, density);
+
+  // Try the full height first, then shrink in steps until content fits
+  let h = nominal;
+  while (h >= MIN_HERO_HEIGHT) {
+    const bodyHeight = BASE_BODY_HEIGHT - (h - HERO_HEIGHTS.landscape);
+    const { overflowed } = allocateColumns(stream, bodyHeight);
+    if (!overflowed) return h;
+    h -= HERO_SHRINK_STEP;
+  }
+
+  // Content still overflows at minimum — use minimum anyway
+  return MIN_HERO_HEIGHT;
+}
+
+/* ═══════════════ Overflow check for page 1 ═══════════════ */
+
+/**
+ * Returns true if page 1 body content overflows even after adaptive
+ * hero shrinking (i.e. the hero is already at minimum height).
+ */
+export function checkPage1Overflow(data: BrochureData): boolean {
   const heroSize = data.heroSize ?? 'landscape';
-  const heroHeight = HERO_HEIGHTS[heroSize];
-  const bodyHeight = BASE_BODY_HEIGHT - (heroHeight - HERO_HEIGHTS.landscape);
+
+  // Small box modes can't shrink — check normally
+  if (heroSize === 'small') {
+    const heroHeight = HERO_HEIGHTS[heroSize];
+    const bodyHeight = BASE_BODY_HEIGHT - (heroHeight - HERO_HEIGHTS.landscape);
+    const filledRows = data.accommodation.filter(
+      (r) => r.floor?.trim() || (r.sqFt != null && r.sqFt !== 0),
+    );
+    const density = getTableDensity(filledRows.length);
+    const stream = buildContentStream(data, filledRows, density);
+    const { overflowed } = allocateColumns(stream, bodyHeight);
+    return overflowed;
+  }
+
+  // For landscape/tall: overflow only if content doesn't fit even at minimum hero height
+  const bodyHeight = BASE_BODY_HEIGHT - (MIN_HERO_HEIGHT - HERO_HEIGHTS.landscape);
+  const filledRows = data.accommodation.filter(
+    (r) => r.floor?.trim() || (r.sqFt != null && r.sqFt !== 0),
+  );
+  const density = getTableDensity(filledRows.length);
   const stream = buildContentStream(data, filledRows, density);
   const { overflowed } = allocateColumns(stream, bodyHeight);
   return overflowed;

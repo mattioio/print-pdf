@@ -37,6 +37,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
   const [visible, setVisible] = useState(false);
   const [animating, setAnimating] = useState(false);
   const loadedOrgRef = useRef<string | null>(null);
+  const dirtyRef = useRef(false); // only save after user edits, not initial load
 
   const orgId = organization?.id ?? '';
 
@@ -67,6 +68,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
       apiCompanySettings.get(orgId),
       apiCompanyAgents.list(orgId),
     ]).then(([settingsRow, agentsRows]) => {
+      dirtyRef.current = false; // prevent auto-save from firing on initial load
       setSettings(settingsToClient(settingsRow, agentsRows));
       loadedOrgRef.current = orgId;
     }).catch((err) => {
@@ -79,6 +81,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
   const lastSyncedName = useRef<string>('');
   useEffect(() => {
     if (!orgId || !loadedOrgRef.current) return;
+    if (!dirtyRef.current) return; // skip save on initial load
 
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
@@ -103,12 +106,18 @@ export default function Settings({ open, onClose }: SettingsProps) {
     return () => clearTimeout(saveTimer.current);
   }, [settings, orgId, updateOrganizationDisplayName]);
 
+  // Wrapper that marks settings as dirty (user-edited) before updating
+  const updateSettings: typeof setSettings = useCallback((action) => {
+    dirtyRef.current = true;
+    setSettings(action);
+  }, []);
+
   const updateAgency = useCallback((key: string, value: string) => {
-    setSettings((prev) => ({
+    updateSettings((prev) => ({
       ...prev,
       agency: { ...prev.agency, [key]: value },
     }));
-  }, []);
+  }, [updateSettings]);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,26 +156,26 @@ export default function Settings({ open, onClose }: SettingsProps) {
   }, [updateAgency, orgId]);
 
   const updateAgent = useCallback((index: number, field: 'name' | 'email', value: string) => {
-    setSettings((prev) => {
+    updateSettings((prev) => {
       const agents = [...prev.agents];
       agents[index] = { ...agents[index], [field]: value };
       return { ...prev, agents };
     });
-  }, []);
+  }, [updateSettings]);
 
   const addAgent = useCallback(() => {
-    setSettings((prev) => ({
+    updateSettings((prev) => ({
       ...prev,
       agents: [...prev.agents, { name: '', email: '' }],
     }));
-  }, []);
+  }, [updateSettings]);
 
   const removeAgent = useCallback((index: number) => {
-    setSettings((prev) => ({
+    updateSettings((prev) => ({
       ...prev,
       agents: prev.agents.filter((_, i) => i !== index),
     }));
-  }, []);
+  }, [updateSettings]);
 
   const inputClass =
     'w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-amber-500 focus:ring-1 focus:ring-amber-500 focus:outline-none';
@@ -390,7 +399,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                     type="color"
                     value={settings.accentColor}
                     onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, accentColor: e.target.value }))
+                      updateSettings((prev) => ({ ...prev, accentColor: e.target.value }))
                     }
                     className="w-9 h-9 rounded border border-gray-300 cursor-pointer p-0.5"
                   />
@@ -402,7 +411,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                       let v = e.target.value;
                       if (!v.startsWith('#')) v = '#' + v;
                       v = '#' + v.slice(1).replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-                      setSettings((prev) => ({ ...prev, accentColor: v }));
+                      updateSettings((prev) => ({ ...prev, accentColor: v }));
                     }}
                     placeholder="#000000"
                     title="Hex colour code"
@@ -416,7 +425,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                     type="color"
                     value={settings.textColor}
                     onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, textColor: e.target.value }))
+                      updateSettings((prev) => ({ ...prev, textColor: e.target.value }))
                     }
                     className="w-9 h-9 rounded border border-gray-300 cursor-pointer p-0.5"
                   />
@@ -428,7 +437,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                       let v = e.target.value;
                       if (!v.startsWith('#')) v = '#' + v;
                       v = '#' + v.slice(1).replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-                      setSettings((prev) => ({ ...prev, textColor: v }));
+                      updateSettings((prev) => ({ ...prev, textColor: v }));
                     }}
                     placeholder="#1a1a1a"
                     title="Hex colour code"
@@ -444,7 +453,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                   className={selectClass}
                   value={settings.titleFont}
                   onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, titleFont: e.target.value }))
+                    updateSettings((prev) => ({ ...prev, titleFont: e.target.value }))
                   }
                 >
                   {FONT_OPTIONS.map((f) => (
@@ -460,7 +469,7 @@ export default function Settings({ open, onClose }: SettingsProps) {
                   className={selectClass}
                   value={settings.bodyFont}
                   onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, bodyFont: e.target.value }))
+                    updateSettings((prev) => ({ ...prev, bodyFont: e.target.value }))
                   }
                 >
                   {FONT_OPTIONS.map((f) => (

@@ -37,7 +37,7 @@ export interface BrochureData {
   agency: AgencyDetails;
   heroImageUrl: string;
   heroImagePosition: { x: number; y: number };
-  heroSize: 'landscape' | 'tall';
+  heroSize: 'landscape' | 'tall' | 'small';
   heroZoom: number;
   showGallery: boolean;
   galleryImages: GalleryImage[];
