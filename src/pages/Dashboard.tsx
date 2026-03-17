@@ -212,7 +212,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
         {showAdmin && <AdminBar onAdmin={onAdmin} />}
 
         <div className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-5xl mx-auto flex items-center h-14 px-6">
+        <div className="max-w-5xl mx-auto flex items-center h-14 px-4 sm:px-6">
           {/* Brand */}
           <div className="min-w-0 flex flex-col -space-y-0.5">
             <span className="font-semibold text-gray-900 text-base truncate leading-tight">
@@ -234,7 +234,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 008.7 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 8.7a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
             </svg>
-            Settings
+            <span className="hidden sm:inline">Settings</span>
           </button>
 
           {/* User menu */}
@@ -247,7 +247,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
 
       {/* Content */}
       <main className="flex-1">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           {loading ? (
             <div className="flex items-center justify-center py-32">
               <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -294,7 +294,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
 
               {/* Search + Sort */}
               <div className="flex items-center gap-3 mb-4">
-                <div className="relative flex-1 max-w-xs">
+                <div className="relative flex-1 sm:max-w-xs">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="11" cy="11" r="8" />
                     <path d="M21 21l-4.35-4.35" />
@@ -327,12 +327,12 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                 {filteredRows.map((b) => (
                   <div
                     key={b.id}
-                    className="relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group flex h-36"
+                    className="relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group flex flex-col sm:flex-row sm:h-36"
                     onClick={() => handleEdit(b)}
                   >
                     {/* Hero thumbnail */}
                     {b.hero_image_url ? (
-                      <div className="w-44 shrink-0 overflow-hidden bg-gray-100">
+                      <div className="h-40 sm:h-auto sm:w-44 shrink-0 overflow-hidden bg-gray-100">
                         <img
                           src={b.hero_image_url}
                           alt=""
@@ -343,7 +343,7 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                         />
                       </div>
                     ) : (
-                      <div className="w-44 shrink-0 bg-gray-50 flex items-center justify-center">
+                      <div className="h-28 sm:h-auto sm:w-44 shrink-0 bg-gray-50 flex items-center justify-center">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-gray-200">
                           <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5" />
                           <circle cx="8.5" cy="8.5" r="2" stroke="currentColor" strokeWidth="1.5" />
@@ -353,13 +353,13 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                     )}
 
                     {/* Info */}
-                    <div className="flex-1 min-w-0 px-5 py-3.5 flex flex-col justify-between">
+                    <div className="flex-1 min-w-0 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col justify-between gap-2.5">
                       <div>
                         <h3 className="font-semibold text-gray-900 truncate">{b.headline || b.name || 'Untitled'}</h3>
                         {b.location_name && (
                           <p className="text-sm text-gray-500 mt-0.5 truncate font-medium">{b.location_name}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1.5">
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">
                             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                               <rect x="2" y="3" width="12" height="11" rx="1.5" />
@@ -373,8 +373,8 @@ export default function Dashboard({ onEdit, onSettings, onAdmin }: DashboardProp
                             })}
                           </span>
                           {b.template_id && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5">
-                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-gray-50 rounded-full px-2 py-0.5 truncate max-w-[140px]">
+                              <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                                 <path d="M9 1.5H4a1.5 1.5 0 00-1.5 1.5v10A1.5 1.5 0 004 14.5h8a1.5 1.5 0 001.5-1.5V6L9 1.5z" />
                                 <path d="M9 1.5V6h4.5" />
                               </svg>
