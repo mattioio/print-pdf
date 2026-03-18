@@ -18,6 +18,10 @@ export default function FormPanel() {
   const template = templates[data.templateId] ?? templates.classic;
   const FormSections = template.formComponent;
 
+  const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  const undoLabel = isMac ? 'Undo (⌘Z)' : 'Undo (Ctrl+Z)';
+  const redoLabel = isMac ? 'Redo (⌘⇧Z)' : 'Redo (Ctrl+Y)';
+
   // Tick the saved-time display every 10s so it stays fresh
   const [, tick] = useState(0);
   useEffect(() => {
@@ -35,7 +39,7 @@ export default function FormPanel() {
           className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-25 disabled:hover:bg-transparent disabled:cursor-default"
           onClick={undo}
           disabled={!canUndo}
-          title="Undo (⌘Z)"
+          title={undoLabel}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 5.5h5.5a3 3 0 0 1 0 6H7" />
@@ -46,7 +50,7 @@ export default function FormPanel() {
           className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-25 disabled:hover:bg-transparent disabled:cursor-default"
           onClick={redo}
           disabled={!canRedo}
-          title="Redo (⌘⇧Z)"
+          title={redoLabel}
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M11 5.5H5.5a3 3 0 0 0 0 6H7" />
