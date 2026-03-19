@@ -101,15 +101,12 @@ export default function RichText({ text, style }: RichTextProps) {
     for (let i = 0; i < lines.length; i++) {
       const trimmed = lines[i].trim();
       if (i > 0) spans.push(<Text key={`br-${key++}`}>{'\n'}</Text>);
-      if (trimmed === '') {
-        // Empty line = small paragraph break
-        spans.push(<Text key={`sp-${key++}`}>{'\n'}</Text>);
-      } else {
+      if (trimmed !== '') {
         spans.push(...parseInline(trimmed, style).map((node, j) =>
-          // Re-key inline nodes to avoid collisions
           React.isValidElement(node) ? React.cloneElement(node, { key: `ln-${key++}-${j}` }) : node
         ));
       }
+      // empty lines: the \n from i > 0 above is the paragraph break — no extra needed
     }
     return <Text style={style}>{spans}</Text>;
   }
