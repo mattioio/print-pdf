@@ -38,6 +38,12 @@ export type ContentBlock =
       hasTotalRow: boolean;
       density: TableDensity;
       extraText?: string;
+    }
+  | {
+      type: 'viewings';
+      telephoneIntro: string;
+      contacts: Array<{ name: string; email: string }>;
+      blurb?: string;
     };
 
 export interface TableDensity {
@@ -68,6 +74,8 @@ const EMPTY_LINE_H = 4; // blank-line spacer in RichText
 const TABLE_HEADER_H = 15; // header row height
 const TABLE_TOTAL_H = 15; // total row height
 const TABLE_DESC_MB = 8; // accommodationDescription marginBottom
+const CONTACT_H = 32; // each contact item: marginTop 10 + name ~10 + marginTop 2 + email ~10
+const VIEWINGS_BLURB_MT = 12; // viewingsBlurb marginTop
 
 /* ═══════════════ Height estimation ═══════════════ */
 
@@ -118,6 +126,12 @@ function measureBlock(block: ContentBlock): number {
         block.descriptionText,
         block.extraText,
       );
+    case 'viewings': {
+      const introH = LINE_H;
+      const contactsH = block.contacts.length * CONTACT_H;
+      const blurbH = block.blurb ? estimateTextHeight(block.blurb) + VIEWINGS_BLURB_MT : 0;
+      return introH + contactsH + blurbH;
+    }
   }
 }
 
@@ -185,6 +199,78 @@ export function buildContentStream(
     hasTotalRow: filledRows.length > 1,
     density,
     extraText: data.accommodationExtra?.trim() || undefined,
+  });
+
+  return blocks;
+}
+
+/* ═══════════════ Small-hero content stream (all sections, no forced break) ═══════════════ */
+
+/**
+ * Builds the full content stream for the small-hero layout.
+ * Includes ALL page-1 sections (Accommodation + Lease + Rates + Legal Costs + EPC + Viewings)
+ * without a forced column-break so `allocateColumnsBalanced` can split them optimally.
+ */
+export function buildSmallHeroContentStream(
+  data: BrochureData,
+  filledRows: AccommodationRow[],
+  density: TableDensity,
+): ContentBlock[] {
+  const blocks: ContentBlock[] = [];
+  let isFirst = true;
+
+  const addSection = (label: string, text: string) => {
+    if (!text) return;
+    blocks.push({ type: 'label', text: label, isFirst });
+    blocks.push({ type: 'richtext', text });
+    isFirst = false;
+  };
+
+  // Left-side content (same order as standard stream)
+  addSection('Location', data.locationDescription);
+  const useText = data.useDescription || generateUseText(data.useClasses ?? [], data.useAlternatives ?? false);
+  if (useText) addSection('Use', useText);
+  addSection('Rent', data.rent);
+  if (data.premisesLicence) addSection('Premises Licence', data.premisesLicence);
+
+  // Accommodation
+  blocks.push({ type: 'label', text: 'Accommodation', isFirst });
+  isFirst = false;
+  const autoDescription = generateAccommodationDescription(
+    filledRows.map((r) => r.floor).filter(Boolean),
+  );
+  blocks.push({
+    type: 'table',
+    rows: filledRows,
+    hasDescription: !!autoDescription,
+    descriptionText: autoDescription,
+    hasTotalRow: filledRows.length > 1,
+    density,
+    extraText: data.accommodationExtra?.trim() || undefined,
+  });
+
+  // Page-2 sections (condensed onto page 1 for small hero)
+  if (data.lease) addSection('Lease', data.lease);
+
+  const ratesText =
+    data.rates || 'Interested parties are advised to make their own enquiries directly with the Local Authority.';
+  addSection('Rates', ratesText);
+
+  if (data.legalCosts) addSection('Legal Costs', data.legalCosts);
+  if (data.epc) addSection('EPC', data.epc);
+
+  // Viewings
+  const telephoneIntro = data.agency.telephone
+    ? `For viewings please call *${data.agency.telephone}* or email one of our agents:`
+    : 'Please contact:';
+  const filledContacts = (data.viewings ?? []).filter((c) => c.name || c.email);
+  blocks.push({ type: 'label', text: 'Viewings', isFirst });
+  isFirst = false;
+  blocks.push({
+    type: 'viewings',
+    telephoneIntro,
+    contacts: filledContacts,
+    blurb: data.viewingsBlurb || undefined,
   });
 
   return blocks;
@@ -352,6 +438,77 @@ export function allocateColumns(
   }
 
   // Check if content overflows either column
+  const leftTotal = left.reduce((sum, mb) => sum + mb.height, 0);
+  const rightTotal = right.reduce((sum, mb) => sum + mb.height, 0);
+  const overflowed = leftTotal > availableHeight || rightTotal > availableHeight;
+
+  return { left, right, overflowed };
+}
+
+/* ═══════════════ Balanced column allocation (small hero) ═══════════════ */
+
+/**
+ * Fix up `isFirst` on label blocks so the first label in each column
+ * gets no top margin and all subsequent ones get proper spacing.
+ */
+function fixIsFirst(mbs: MeasuredBlock[]): MeasuredBlock[] {
+  let firstLabelSeen = false;
+  return mbs.map((mb) => {
+    if (mb.block.type === 'label') {
+      if (!firstLabelSeen) {
+        firstLabelSeen = true;
+        if (!mb.block.isFirst) {
+          return { block: { ...mb.block, isFirst: true }, height: LABEL_H };
+        }
+      } else if (mb.block.isFirst) {
+        return { block: { ...mb.block, isFirst: false }, height: LABEL_H + LABEL_SPACING };
+      }
+    }
+    return mb;
+  });
+}
+
+/**
+ * Balanced two-column allocation.
+ *
+ * Finds the block split-point that minimises the height difference between
+ * the two columns. Labels are never orphaned at the end of a column (they
+ * are kept with their following content block).
+ */
+export function allocateColumnsBalanced(
+  blocks: ContentBlock[],
+  availableHeight: number,
+): ColumnAllocation {
+  if (blocks.length === 0) return { left: [], right: [], overflowed: false };
+
+  const measured: MeasuredBlock[] = blocks.map((b) => ({ block: b, height: measureBlock(b) }));
+  const total = measured.reduce((sum, mb) => sum + mb.height, 0);
+
+  // Find the split index (after block i) that produces the most balanced columns
+  let bestIdx = Math.ceil(measured.length / 2);
+  let minDiff = Infinity;
+  let leftRunning = 0;
+
+  for (let i = 0; i < measured.length; i++) {
+    leftRunning += measured[i].height;
+    const diff = Math.abs(leftRunning - (total - leftRunning));
+    if (diff < minDiff) {
+      minDiff = diff;
+      bestIdx = i + 1;
+    }
+  }
+
+  // Don't orphan a label at the bottom of the left column
+  if (bestIdx > 0 && bestIdx < measured.length) {
+    const lastLeft = measured[bestIdx - 1].block;
+    if (lastLeft.type === 'label') {
+      bestIdx--;
+    }
+  }
+
+  const left = fixIsFirst(measured.slice(0, bestIdx));
+  const right = fixIsFirst(measured.slice(bestIdx));
+
   const leftTotal = left.reduce((sum, mb) => sum + mb.height, 0);
   const rightTotal = right.reduce((sum, mb) => sum + mb.height, 0);
   const overflowed = leftTotal > availableHeight || rightTotal > availableHeight;
