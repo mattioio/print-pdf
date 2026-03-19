@@ -498,11 +498,19 @@ export function allocateColumnsBalanced(
     }
   }
 
-  // Don't orphan a label at the bottom of the left column
+  // Don't orphan a label at the bottom of the left column.
+  // When the optimal split point would strand a label without its content,
+  // try both directions and pick whichever gives better balance.
   if (bestIdx > 0 && bestIdx < measured.length) {
     const lastLeft = measured[bestIdx - 1].block;
     if (lastLeft.type === 'label') {
-      bestIdx--;
+      const advIdx = Math.min(bestIdx + 1, measured.length);
+      const retIdx = bestIdx - 1;
+      const leftAdv = measured.slice(0, advIdx).reduce((s, mb) => s + mb.height, 0);
+      const leftRet = measured.slice(0, retIdx).reduce((s, mb) => s + mb.height, 0);
+      const diffAdv = Math.abs(leftAdv - (total - leftAdv));
+      const diffRet = Math.abs(leftRet - (total - leftRet));
+      bestIdx = diffAdv <= diffRet ? advIdx : retIdx;
     }
   }
 
