@@ -353,11 +353,19 @@ export function allocateColumns(
         }
       }
       const target = switched ? right : left;
-      // If this label claims isFirst but there's already content in the column, correct it
-      if (block.type === 'label' && block.isFirst && target.length > 0) {
-        const corrected = { ...block, isFirst: false };
-        target.push({ block: corrected, height: LABEL_H + LABEL_SPACING });
-        remaining -= (LABEL_H + LABEL_SPACING);
+      // Correct isFirst so the first label in each column has no top margin
+      // and all subsequent labels have proper spacing — regardless of stream order.
+      if (block.type === 'label') {
+        const shouldBeFirst = target.length === 0;
+        if (block.isFirst !== shouldBeFirst) {
+          const corrected = { ...block, isFirst: shouldBeFirst };
+          const correctedH = shouldBeFirst ? LABEL_H : LABEL_H + LABEL_SPACING;
+          target.push({ block: corrected, height: correctedH });
+          remaining -= correctedH;
+        } else {
+          target.push({ block, height });
+          remaining -= height;
+        }
       } else {
         target.push({ block, height });
         remaining -= height;
