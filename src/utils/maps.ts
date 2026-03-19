@@ -93,8 +93,9 @@ export async function resolveAndParseCoords(
 }
 
 /**
- * Generate a static map image as a data URL using Google Maps road tiles.
- * Composites tiles onto a canvas with a Google-style pin marker.
+ * Generate a static map image as a data URL.
+ * In production, routes through /api/static-map (server-side proxy, key stays secret).
+ * In dev (Vite only, no API routes), falls back to direct tile compositing.
  */
 export async function generateStaticMap(
   lat: number,
@@ -102,10 +103,42 @@ export async function generateStaticMap(
   opts: { width?: number; height?: number; zoom?: number } = {}
 ): Promise<string> {
   const { width = 800, height = 400, zoom = 16 } = opts;
+
+  // Try the server-side proxy first (works in production + vercel dev)
+  try {
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString(),
+      zoom: zoom.toString(),
+      width: width.toString(),
+      height: height.toString(),
+    });
+    const res = await fetch(`/api/static-map?${params}`);
+    if (res.ok) {
+      const blob = await res.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+  } catch {
+    // fall through to tile fallback
+  }
+
+  // Fallback: composite tiles directly (dev only, unofficial)
+  return generateStaticMapFromTiles(lat, lng, { width, height, zoom });
+}
+
+async function generateStaticMapFromTiles(
+  lat: number,
+  lng: number,
+  { width = 800, height = 400, zoom = 16 }: { width?: number; height?: number; zoom?: number }
+): Promise<string> {
   const tileSize = 256;
   const n = Math.pow(2, zoom);
 
-  // Convert lat/lng to global pixel coords
   const centerPxX = ((lng + 180) / 360) * n * tileSize;
   const latRad = (lat * Math.PI) / 180;
   const centerPxY =
@@ -113,17 +146,12 @@ export async function generateStaticMap(
     n *
     tileSize;
 
-  // Top-left pixel of our viewport
   const topLeftPxX = centerPxX - width / 2;
   const topLeftPxY = centerPxY - height / 2;
-
-  // Tile range needed
   const startTileX = Math.floor(topLeftPxX / tileSize);
   const startTileY = Math.floor(topLeftPxY / tileSize);
   const endTileX = Math.floor((topLeftPxX + width) / tileSize);
   const endTileY = Math.floor((topLeftPxY + height) / tileSize);
-
-  // Pixel offset of first tile
   const offsetX = topLeftPxX - startTileX * tileSize;
   const offsetY = topLeftPxY - startTileY * tileSize;
 
@@ -131,70 +159,59 @@ export async function generateStaticMap(
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
-
-  // Fill background
   ctx.fillStyle = '#e5e3df';
   ctx.fillRect(0, 0, width, height);
 
-  // Load all tiles in parallel
   const loadTile = (tx: number, ty: number): Promise<void> =>
     new Promise((resolve) => {
       const wrapTx = ((tx % n) + n) % n;
-      if (ty < 0 || ty >= n) {
-        resolve();
-        return;
-      }
-      const url = `https://mt0.google.com/vt/lyrs=m&x=${wrapTx}&y=${ty}&z=${zoom}`;
+      if (ty < 0 || ty >= n) { resolve(); return; }
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        const px = (tx - startTileX) * tileSize - offsetX;
-        const py = (ty - startTileY) * tileSize - offsetY;
-        ctx.drawImage(img, px, py, tileSize, tileSize);
+        ctx.drawImage(img, (tx - startTileX) * tileSize - offsetX, (ty - startTileY) * tileSize - offsetY, tileSize, tileSize);
         resolve();
       };
       img.onerror = () => resolve();
-      img.src = url;
+      // lyrs=r = road map without POI icons
+      img.src = `https://mt0.google.com/vt/lyrs=r&x=${wrapTx}&y=${ty}&z=${zoom}`;
     });
 
   const promises: Promise<void>[] = [];
-  for (let tx = startTileX; tx <= endTileX; tx++) {
-    for (let ty = startTileY; ty <= endTileY; ty++) {
+  for (let tx = startTileX; tx <= endTileX; tx++)
+    for (let ty = startTileY; ty <= endTileY; ty++)
       promises.push(loadTile(tx, ty));
-    }
-  }
   await Promise.all(promises);
 
-  // Draw Google-style pin marker at center
-  const cx = width / 2;
-  const cy = height / 2;
-  const pinTip = cy + 4;
-  const pinCenter = pinTip - 38;
-  const pinRadius = 16;
+  // Pin marker — clean teardrop
+  const cx = width / 2, cy = height / 2;
+  const r = 14; // circle radius
+  const tipY = cy + r + 10; // tip of teardrop
 
-  // Shadow
+  // Drop shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
+
+  // Teardrop body
   ctx.beginPath();
-  ctx.ellipse(cx, pinTip + 3, 10, 4, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.arc(cx, cy - 6, r, Math.PI * 0.2, Math.PI * 0.8, true);
+  ctx.lineTo(cx, tipY);
+  ctx.closePath();
+  ctx.fillStyle = '#CC2200';
   ctx.fill();
 
-  // Pin body (teardrop)
+  // Circle head
+  ctx.shadowColor = 'transparent';
   ctx.beginPath();
-  ctx.moveTo(cx, pinTip);
-  ctx.bezierCurveTo(cx - 8, pinTip - 12, cx - pinRadius, pinCenter - 6, cx - pinRadius, pinCenter);
-  ctx.arc(cx, pinCenter, pinRadius, Math.PI, 0, false);
-  ctx.bezierCurveTo(cx + pinRadius, pinCenter - 6, cx + 8, pinTip - 12, cx, pinTip);
-  ctx.fillStyle = '#EA4335';
+  ctx.arc(cx, cy - 6, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#E53224';
   ctx.fill();
 
-  // Inner circle
+  // Inner white dot
   ctx.beginPath();
-  ctx.arc(cx, pinCenter, 7, 0, Math.PI * 2);
-  ctx.fillStyle = '#B31412';
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(cx, pinCenter, 5, 0, Math.PI * 2);
-  ctx.fillStyle = '#EA4335';
+  ctx.arc(cx, cy - 6, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.fill();
 
   return canvas.toDataURL('image/jpeg', 0.85);
