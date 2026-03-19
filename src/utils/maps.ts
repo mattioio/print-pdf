@@ -173,7 +173,8 @@ async function generateStaticMapFromTiles(
         resolve();
       };
       img.onerror = () => resolve();
-      img.src = `https://mt0.google.com/vt/lyrs=m&x=${wrapTx}&y=${ty}&z=${zoom}`;
+      // lyrs=r = road map without POI icons
+      img.src = `https://mt0.google.com/vt/lyrs=r&x=${wrapTx}&y=${ty}&z=${zoom}`;
     });
 
   const promises: Promise<void>[] = [];
@@ -182,22 +183,36 @@ async function generateStaticMapFromTiles(
       promises.push(loadTile(tx, ty));
   await Promise.all(promises);
 
-  // Pin marker
+  // Pin marker — clean teardrop
   const cx = width / 2, cy = height / 2;
-  const pinTip = cy + 4, pinCenter = pinTip - 38, pinRadius = 16;
+  const r = 14; // circle radius
+  const tipY = cy + r + 10; // tip of teardrop
+
+  // Drop shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetY = 3;
+
+  // Teardrop body
   ctx.beginPath();
-  ctx.ellipse(cx, pinTip + 3, 10, 4, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  ctx.arc(cx, cy - 6, r, Math.PI * 0.2, Math.PI * 0.8, true);
+  ctx.lineTo(cx, tipY);
+  ctx.closePath();
+  ctx.fillStyle = '#CC2200';
   ctx.fill();
+
+  // Circle head
+  ctx.shadowColor = 'transparent';
   ctx.beginPath();
-  ctx.moveTo(cx, pinTip);
-  ctx.bezierCurveTo(cx - 8, pinTip - 12, cx - pinRadius, pinCenter - 6, cx - pinRadius, pinCenter);
-  ctx.arc(cx, pinCenter, pinRadius, Math.PI, 0, false);
-  ctx.bezierCurveTo(cx + pinRadius, pinCenter - 6, cx + 8, pinTip - 12, cx, pinTip);
-  ctx.fillStyle = '#EA4335';
+  ctx.arc(cx, cy - 6, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#E53224';
   ctx.fill();
-  ctx.beginPath(); ctx.arc(cx, pinCenter, 7, 0, Math.PI * 2); ctx.fillStyle = '#B31412'; ctx.fill();
-  ctx.beginPath(); ctx.arc(cx, pinCenter, 5, 0, Math.PI * 2); ctx.fillStyle = '#EA4335'; ctx.fill();
+
+  // Inner white dot
+  ctx.beginPath();
+  ctx.arc(cx, cy - 6, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fill();
 
   return canvas.toDataURL('image/jpeg', 0.85);
 }
