@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rows = await sql`
       SELECT pi.email, pi.name, pi.used_at, o.name as org_name
       FROM public.platform_invitations pi
-      JOIN neon_auth.organization o ON o.id = pi.organization_id
+      JOIN neon_auth.organization o ON o.id::text = pi.organization_id
       WHERE pi.code = ${code}
       LIMIT 1
     `;
@@ -72,8 +72,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Check if already a member
     const existing = await sql`
       SELECT id FROM neon_auth.member
-      WHERE "organizationId" = ${invite.organization_id}
-        AND "userId" = ${session.userId}
+      WHERE "organizationId"::text = ${invite.organization_id}
+        AND "userId"::text = ${session.userId}
       LIMIT 1
     `;
 
@@ -81,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Add user to org
       await sql`
         INSERT INTO neon_auth.member (id, "organizationId", "userId", role, "createdAt")
-        VALUES (gen_random_uuid(), ${invite.organization_id}, ${session.userId}, 'member', now())
+        VALUES (gen_random_uuid(), ${invite.organization_id}::uuid, ${session.userId}::uuid, 'member', now())
       `;
     }
 
