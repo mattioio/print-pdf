@@ -1,7 +1,7 @@
 import { Page, View, Text, Image, StyleSheet, Svg, Path, Circle, Defs, LinearGradient, Stop, Rect } from '@react-pdf/renderer';
 import type { BrochureData } from '../../../../types/brochure';
 import RichText from '../../shared/RichText';
-import { buildContentStream, allocateColumns, getTableDensity, computeHeroHeight, HERO_HEIGHTS, BASE_BODY_HEIGHT } from '../../shared/columnFlow';
+import { buildContentStream, buildSmallHeroContentStream, allocateColumns, allocateColumnsBalanced, getTableDensity, computeHeroHeight, HERO_HEIGHTS, BASE_BODY_HEIGHT } from '../../shared/columnFlow';
 import type { MeasuredBlock } from '../../shared/columnFlow';
 import { shared } from './classicStyles';
 
@@ -249,6 +249,21 @@ function renderBlock(
       );
     case 'richtext':
       return <RichText key={`rt-${idx}`} text={block.text} style={[s.bodyText, { color: bodyColor }]} />;
+    case 'viewings':
+      return (
+        <View key={`vw-${idx}`}>
+          <RichText text={block.telephoneIntro} style={[s.bodyText, { color: bodyColor }]} />
+          {block.contacts.map((c, ci) => (
+            <View style={[shared.contactItem, { borderLeftColor: _accent }]} key={ci}>
+              {c.name ? <Text style={[shared.contactName, { color: textColor }]}>{c.name}</Text> : null}
+              {c.email ? <Text style={[shared.contactEmail, { color: bodyColor }]}>{c.email}</Text> : null}
+            </View>
+          ))}
+          {block.blurb ? (
+            <RichText text={block.blurb} style={[shared.viewingsBlurb, { color: bodyColor }]} />
+          ) : null}
+        </View>
+      );
     case 'table':
       return (
         <View key={`tbl-${idx}`}>
@@ -308,8 +323,12 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
   const gallery = data.showGallery ? (data.galleryImages ?? []).filter((img) => img.url) : [];
 
   // Build content stream and allocate to columns
-  const stream = buildContentStream(data, filledRows, density);
-  const { left, right } = allocateColumns(stream, bodyHeight);
+  const stream = heroSize === 'small'
+    ? buildSmallHeroContentStream(data, filledRows, density)
+    : buildContentStream(data, filledRows, density);
+  const { left, right } = heroSize === 'small'
+    ? allocateColumnsBalanced(stream, bodyHeight)
+    : allocateColumns(stream, bodyHeight);
 
   return (
     <>
@@ -467,57 +486,9 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
           <View style={s.body}>
             <View style={shared.col}>
               {left.map((mb, i) => renderBlock(mb, i, bodyFont, accent, textColor, bodyColor))}
-              {/* Small hero: Lease + EPC on the left to balance with Accommodation on the right */}
-              {heroSize === 'small' && (
-                <>
-                  {data.lease ? (
-                    <>
-                      <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Lease</Text>
-                      <RichText text={data.lease} style={[shared.bodyText, { color: bodyColor }]} />
-                    </>
-                  ) : null}
-                  {data.epc ? (
-                    <>
-                      <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>EPC</Text>
-                      <RichText text={data.epc} style={[shared.bodyText, { color: bodyColor }]} />
-                    </>
-                  ) : null}
-                </>
-              )}
             </View>
             <View style={shared.col}>
               {right.map((mb, i) => renderBlock(mb, i + left.length, bodyFont, accent, textColor, bodyColor))}
-              {/* Small hero: Viewings + Rates + Legal Costs on right to balance long left column */}
-              {heroSize === 'small' && (
-                <>
-                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Viewings</Text>
-                  <Text style={[shared.bodyText, { color: bodyColor }]}>
-                    {data.agency.telephone ? (
-                      <>
-                        {'For viewings please call '}
-                        <Text style={{ fontWeight: 700, fontSize: 8 }}>{data.agency.telephone}</Text>
-                        {' or email one of our agents:'}
-                      </>
-                    ) : 'Please contact:'}
-                  </Text>
-                  {data.viewings.map((contact, i) => (
-                    <View style={[shared.contactItem, { borderLeftColor: accent }]} key={i}>
-                      {contact.name ? <Text style={[shared.contactName, { color: textColor }]}>{contact.name}</Text> : null}
-                      {contact.email ? <Text style={[shared.contactEmail, { color: bodyColor }]}>{contact.email}</Text> : null}
-                    </View>
-                  ))}
-                  {data.viewingsBlurb ? (
-                    <RichText text={data.viewingsBlurb} style={[shared.viewingsBlurb, { color: bodyColor }]} />
-                  ) : null}
-                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Rates</Text>
-                  <RichText
-                    text={data.rates || 'Interested parties are advised to make their own enquiries directly with the Local Authority.'}
-                    style={[shared.bodyText, { color: bodyColor }]}
-                  />
-                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Legal Costs</Text>
-                  <RichText text={data.legalCosts} style={[shared.bodyText, { color: bodyColor }]} />
-                </>
-              )}
             </View>
           </View>
         </View>
