@@ -467,7 +467,7 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
           <View style={s.body}>
             <View style={shared.col}>
               {left.map((mb, i) => renderBlock(mb, i, bodyFont, accent, textColor, bodyColor))}
-              {/* Small hero: inline extra sections in the same column */}
+              {/* Small hero: Lease + EPC on the left to balance with Accommodation on the right */}
               {heroSize === 'small' && (
                 <>
                   {data.lease ? (
@@ -476,13 +476,6 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
                       <RichText text={data.lease} style={[shared.bodyText, { color: bodyColor }]} />
                     </>
                   ) : null}
-                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Rates</Text>
-                  <RichText
-                    text={data.rates || 'Interested parties are advised to make their own enquiries directly with the Local Authority.'}
-                    style={[shared.bodyText, { color: bodyColor }]}
-                  />
-                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Legal Costs</Text>
-                  <RichText text={data.legalCosts} style={[shared.bodyText, { color: bodyColor }]} />
                   {data.epc ? (
                     <>
                       <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>EPC</Text>
@@ -494,7 +487,7 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
             </View>
             <View style={shared.col}>
               {right.map((mb, i) => renderBlock(mb, i + left.length, bodyFont, accent, textColor, bodyColor))}
-              {/* Small hero: inline viewings in the same column */}
+              {/* Small hero: Viewings + Rates + Legal Costs on right to balance long left column */}
               {heroSize === 'small' && (
                 <>
                   <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Viewings</Text>
@@ -516,6 +509,13 @@ export default function ClassicPage1({ data }: { data: BrochureData }) {
                   {data.viewingsBlurb ? (
                     <RichText text={data.viewingsBlurb} style={[shared.viewingsBlurb, { color: bodyColor }]} />
                   ) : null}
+                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Rates</Text>
+                  <RichText
+                    text={data.rates || 'Interested parties are advised to make their own enquiries directly with the Local Authority.'}
+                    style={[shared.bodyText, { color: bodyColor }]}
+                  />
+                  <Text style={[shared.sectionLabelSpaced, { fontFamily: bodyFont, color: textColor }]}>Legal Costs</Text>
+                  <RichText text={data.legalCosts} style={[shared.bodyText, { color: bodyColor }]} />
                 </>
               )}
             </View>
